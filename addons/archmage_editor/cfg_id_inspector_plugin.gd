@@ -18,10 +18,16 @@ func _can_handle(_object: Object) -> bool:
 		_ensure_configs_loaded.call()
 	return true
 
+## Makes the Inspector create the property editors of the edited object again, so that a change of the choices or of
+## the inspector plugins takes effect.
+static func rebuild_inspector() -> void:
+	var edited := EditorInterface.get_inspector().get_edited_object()
+	if edited != null:
+		edited.notify_property_list_changed()
+
 func _parse_property(_object: Object, type: Variant.Type, name: String, hint_type: PropertyHint, hint_string: String,
 		_usage_flags: int, _wide: bool) -> bool:
-	# The editor of an array element gets PROPERTY_HINT_NONE.
-	if hint_type != PROPERTY_HINT_TYPE_STRING and hint_type != PROPERTY_HINT_NONE:
+	if hint_type != PROPERTY_HINT_NONE:
 		return false
 	var choices := CfgIdChoices.try_get(hint_string)
 	if choices == null or type != choices.type:

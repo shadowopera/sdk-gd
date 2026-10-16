@@ -13,7 +13,7 @@ class_name CfgIdProp
 extends RefCounted
 
 ## The property hint of every config ID property.
-const HINT := PROPERTY_HINT_TYPE_STRING
+const HINT := PROPERTY_HINT_NONE
 
 ## For an [int] property.
 const DROP := "DropCfgId"

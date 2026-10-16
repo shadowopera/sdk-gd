@@ -17,12 +17,14 @@ func _enter_tree() -> void:
 	_inspector_plugin = CfgIdInspectorPlugin.new(ensure_game_configs_loaded)
 	add_inspector_plugin(_inspector_plugin)
 	add_tool_menu_item(RELOAD_MENU_ITEM, reload_game_configs)
+	CfgIdInspectorPlugin.rebuild_inspector()
 
 func _exit_tree() -> void:
 	remove_tool_menu_item(RELOAD_MENU_ITEM)
 	if _inspector_plugin != null:
 		remove_inspector_plugin(_inspector_plugin)
 		_inspector_plugin = null
+	CfgIdInspectorPlugin.rebuild_inspector()
 
 # The configs are loaded when the Inspector first shows an object, not when the editor starts.
 static func ensure_game_configs_loaded() -> void:
@@ -36,11 +38,7 @@ static func reload_game_configs() -> void:
 		return
 
 	_initialize_cfg_id_choices(atlas)
-
-	# Rebuilds the property editors of the object shown in the Inspector.
-	var edited := EditorInterface.get_inspector().get_edited_object()
-	if edited != null:
-		edited.notify_property_list_changed()
+	CfgIdInspectorPlugin.rebuild_inspector()
 	print("<archmage> Game configs loaded for the editor.")
 
 # Loads the configs synchronously. Returns the atlas, or null when the load fails.
