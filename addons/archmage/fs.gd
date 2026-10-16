@@ -3,6 +3,10 @@
 ## Extend this class to read files from elsewhere, such as from memory. [Archmage.FileAccessFS] is the default.
 ## [method file_exists] and [method dir_exists] return [code]true[/code] unless overridden; keep that default when
 ## checking is not possible or is expensive.
+## [br][br]
+## [method Archmage.AtlasLoader.load_atlas_async] calls [method read_file] and [method file_exists] on worker threads,
+## several at a time, so an implementation must be safe to call that way. [method dir_exists] runs on the thread that
+## starts the load.
 @abstract
 extends RefCounted
 

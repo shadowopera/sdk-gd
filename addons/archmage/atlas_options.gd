@@ -1,4 +1,4 @@
-## The options of [method Archmage.AtlasLoader.load_atlas].
+## The options of [method Archmage.AtlasLoader.load_atlas] and [method Archmage.AtlasLoader.load_atlas_async].
 ##
 ## Each [code]with_*[/code] method returns this object, so calls can be chained:
 ## [codeblock]
@@ -6,8 +6,8 @@
 ##         .with_blacklist(["balance"]) \
 ##         .with_override_root("user://override")
 ## [/codeblock]
-## A method that gets an invalid argument records the error, and [method Archmage.AtlasLoader.load_atlas] then fails
-## with [constant ERR_INVALID_PARAMETER] and that message.
+## A method that gets an invalid argument records the error, and the load then fails with
+## [constant ERR_INVALID_PARAMETER] and that message.
 extends RefCounted
 
 const AtlasOptions = preload("atlas_options.gd")
@@ -113,7 +113,8 @@ func with_override_fs(fs: FS, root: String = "") -> AtlasOptions:
 	return self
 
 
-## Sets the maximum number of items that [code]load_atlas_async()[/code] loads at the same time. The default is 32.
+## Sets the maximum number of items that [method Archmage.AtlasLoader.load_atlas_async] loads at the same time. The
+## default is 32. [method Archmage.AtlasLoader.load_atlas] loads one item at a time.
 func with_max_concurrency(n: int) -> AtlasOptions:
 	if n < 1:
 		_set_error("with_max_concurrency: n must be at least 1, got %d" % n)

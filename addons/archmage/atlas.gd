@@ -11,8 +11,8 @@
 ## [member Archmage.AtlasItem.cfg]), [method bind_refs], then
 ## [method on_loaded]. Loading stops at the first failure.
 ## [br][br]
-## [b]Threads.[/b] The asynchronous loader may call [code]load_json[/code] on worker threads; the other methods run
-## on the main thread.
+## [b]Threads.[/b] The asynchronous loader may call the [code]load_json[/code] and [code]apply_keys[/code] methods of
+## the items on worker threads, for several items at a time; the other methods run on the main thread.
 ## [br][br]
 ## [b]Freeing.[/b] When the atlas is freed, it calls [method unbind_refs], which sets the reference fields of all
 ## entries to [code]null[/code]; without this, entries that reference each other would never be freed. An entry that
@@ -26,6 +26,8 @@ const VersionInfo = preload("version_info.gd")
 # Why a Callable? While the atlas is being freed, a call to one of its own methods fails ("on a null instance"),
 # but a call through a Callable still reaches it.
 var _unbind_refs_callable: Callable = unbind_refs
+## Whether a loader is loading this atlas. [Archmage.AtlasLoader] sets it.
+var _loading := false
 
 
 func _notification(what: int) -> void:

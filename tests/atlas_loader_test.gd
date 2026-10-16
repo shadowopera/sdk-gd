@@ -33,6 +33,27 @@ func load_fail(o: Archmage.AtlasOptions, code: Error, atlas_file := ATLAS, cfg_r
 	return loader.get_error_message()
 
 
+## Loads the test atlas with [code]load_atlas_async()[/code] and records a failure when the load fails. When
+## [param threaded] is false, the loader takes the path for platforms without thread support.
+func load_ok_async(o: Archmage.AtlasOptions, threaded: bool, atlas_file := ATLAS, cfg_root := CFG_ROOT) -> HandConfigAtlas:
+	var atlas := HandConfigAtlas.new()
+	loader._use_threads = threaded
+	var err := await loader.load_atlas_async(atlas_file, cfg_root, atlas, o)
+	check_eq(err, OK, "load_atlas_async (threaded: %s): %s" % [threaded, loader.get_error_message()])
+	return atlas
+
+
+## Loads the test atlas with [code]load_atlas_async()[/code], expects it to fail with [param code], and returns the
+## error message.
+func load_fail_async(o: Archmage.AtlasOptions, code: Error, threaded: bool, atlas_file := ATLAS,
+		cfg_root := CFG_ROOT) -> String:
+	var atlas := HandConfigAtlas.new()
+	loader._use_threads = threaded
+	var err := await loader.load_atlas_async(atlas_file, cfg_root, atlas, o)
+	check_eq(err, code, "load_atlas_async error code (threaded: %s, %s)" % [threaded, loader.get_error_message()])
+	return loader.get_error_message()
+
+
 func check_prefix(message: String, prefix: String) -> void:
 	check(message.begins_with(prefix), "expected a message that starts with\n  %s\ngot\n  %s" % [prefix, message])
 
@@ -535,3 +556,206 @@ func test_drop_atlas_keeps_held_entry() -> void:
 	check(arthur.talents[0].skill == null, "hero 1 talent 0 skill is null")
 	check(elf.heroes.is_empty(), "Elf heroes are cleared")
 	check(not is_instance_id_valid(weapon_id), "the weapon of hero 1 is freed")
+
+
+## A file system that reads with FileAccessFS and records the threads on which read_file runs and how many calls
+## overlap.
+class ProbeFS extends Archmage.FileAccessFS:
+	## How long each read_file call waits before it reads, so that calls on worker threads overlap.
+	var delay_msec := 0
+	var paths: Array[String] = []
+	var main_thread_reads := 0
+	var worker_thread_reads := 0
+	var max_overlap := 0
+	var _overlap := 0
+	var _mutex := Mutex.new()
+
+	func read_file(path: String) -> Variant:
+		_mutex.lock()
+		paths.append(path)
+		if OS.get_thread_caller_id() == OS.get_main_thread_id():
+			main_thread_reads += 1
+		else:
+			worker_thread_reads += 1
+		_overlap += 1
+		max_overlap = maxi(max_overlap, _overlap)
+		_mutex.unlock()
+		if delay_msec > 0:
+			OS.delay_msec(delay_msec)
+		var res: Variant = super.read_file(path)
+		_mutex.lock()
+		_overlap -= 1
+		_mutex.unlock()
+		return res
+
+
+func test_async_basic() -> void:
+	for threaded: bool in [true, false]:
+		logger.lines.clear()
+		var atlas: HandConfigAtlas = await load_ok_async(opts().with_blacklist(["balance"]), threaded)
+		check_golden(atlas, "basic")
+		check_eq(atlas.data_version.semver, "v1.0.0", "data_version.semver")
+		check_eq(atlas.extension.loaded_count, 1, "on_loaded calls")
+		var items := atlas.atlas_items()
+		check(not items["balance"].ready, "balance is skipped")
+		check_eq(items["game"].variant, "/", "game variant")
+		var arthur := atlas.hero_table.lookup(1)
+		check(arthur.weapon == atlas.item_table.lookup(101), "hero 1 weapon is item 101")
+		check(atlas.race_table.lookup("Elf").heroes[0] == atlas.hero_table.lookup(2), "Elf heroes")
+		check(logger.lines.has("<archmage> Skipping atlas item: balance. cause: blacklist"), "skip log: %s" % [logger.lines])
+		var loaded_line := logger.lines.filter(func(l: String) -> bool: return l.begins_with("<archmage> Loaded 8 atlas items in "))
+		check_eq(loaded_line.size(), 1, "summary log line")
+		var item_lines := logger.lines.filter(func(l: String) -> bool: return l.begins_with("<archmage> Loaded atlas item "))
+		check_eq(item_lines.size(), 8, "item log lines")
+
+
+func test_async_worker_threads() -> void:
+	for n: int in [1, 2]:
+		var fs := ProbeFS.new()
+		fs.delay_msec = 20
+		var atlas: HandConfigAtlas = await load_ok_async(opts().with_fs(fs).with_blacklist(["balance"]).with_max_concurrency(n), true)
+		check_golden(atlas, "basic")
+		check_eq(fs.main_thread_reads, 0, "reads on the main thread (max concurrency %d)" % n)
+		check_eq(fs.worker_thread_reads, fs.paths.size(), "reads on worker threads (max concurrency %d)" % n)
+		check(fs.max_overlap <= n, "overlapping reads: %d, max concurrency: %d" % [fs.max_overlap, n])
+
+
+func test_async_main_thread() -> void:
+	var fs := ProbeFS.new()
+	var frame := Engine.get_process_frames()
+	var atlas: HandConfigAtlas = await load_ok_async(opts().with_fs(fs).with_blacklist(["balance"]), false)
+	check_golden(atlas, "basic")
+	check_eq(fs.worker_thread_reads, 0, "reads on worker threads")
+	check_eq(fs.main_thread_reads, fs.paths.size(), "reads on the main thread")
+	var frames := Engine.get_process_frames() - frame
+	check(frames >= 8, "frames for 8 items: %d" % frames)
+
+
+func test_async_errors() -> void:
+	for threaded: bool in [true, false]:
+		var msg: String = await load_fail_async(opts(), ERR_FILE_NOT_FOUND, threaded, "res://tests/testdata/nonexistent_atlas.json")
+		check_eq(msg, "<archmage> failed to read \"res://tests/testdata/nonexistent_atlas.json\": File not found")
+
+		msg = await load_fail_async(opts(), ERR_PARSE_ERROR, threaded, "res://tests/testdata/atlas_invalid.json")
+		check_prefix(msg, "<archmage> invalid \"res://tests/testdata/atlas_invalid.json\" | ")
+
+		msg = await load_fail_async(opts().with_max_concurrency(0), ERR_INVALID_PARAMETER, threaded)
+		check_eq(msg, "<archmage> invalid options: with_max_concurrency: n must be at least 1, got 0")
+
+		msg = await load_fail_async(opts().with_whitelist(["gm"]), ERR_INVALID_PARAMETER, threaded)
+		check_eq(msg, "<archmage> atlas whitelist: unknown item \"gm\"")
+
+		var modifier := func(aj: Archmage.AtlasJson) -> void: aj.unique["item"] = "nonexistent/item.json"
+		msg = await load_fail_async(opts().with_atlas_modifier(modifier).with_blacklist(["balance"]), ERR_FILE_NOT_FOUND, threaded)
+		check_eq(msg, "<archmage> failed to load atlas item \"item\". atlasFile: res://tests/testdata/atlas.json, " +
+				"cfgRoot: res://tests/testdata | failed to read \"res://tests/testdata/nonexistent/item.json\": File not found")
+
+		var modifier2 := func(aj: Archmage.AtlasJson) -> void: aj.many["skill"] = []
+		msg = await load_fail_async(opts().with_whitelist(["skill"]).with_atlas_modifier(modifier2), ERR_DOES_NOT_EXIST, threaded)
+		check(msg.ends_with("| could not find $.many['skill'] in res://tests/testdata/atlas.json"), msg)
+
+		var fs := MemoryFS.new({"item.json": "{invalid json}"})
+		msg = await load_fail_async(opts().with_whitelist(["item"]).with_override_fs(fs), ERR_PARSE_ERROR, threaded)
+		check_prefix(msg, "<archmage> failed to load atlas item \"item\". atlasFile: res://tests/testdata/atlas.json, " +
+				"cfgRoot: res://tests/testdata | failed to apply override \"item.json\" | ")
+
+		fs = MemoryFS.new({"hero.json": "{\"3\": {\"weapon\": 999}}"})
+		msg = await load_fail_async(opts().with_blacklist(["balance"]).with_override_fs(fs), ERR_INVALID_DATA, threaded)
+		check_eq(msg, "<archmage> failed to bind refs | hero[3].weapon: ItemTable: config entry not found for ID 999")
+
+		loader._use_threads = threaded
+		var atlas := HandConfigAtlas.new()
+		atlas.atlas_items()["route"].mapping = "single"
+		check_eq(await loader.load_atlas_async(ATLAS, CFG_ROOT, atlas, opts().with_whitelist(["route"])), ERR_INVALID_DATA,
+				"unsupported mapping")
+		check(loader.get_error_message().ends_with("| unsupported mapping: single"), loader.get_error_message())
+
+		atlas = HandConfigAtlas.new()
+		atlas.extension.fail_message = "the extension failed"
+		check_eq(await loader.load_atlas_async(ATLAS, CFG_ROOT, atlas, opts().with_blacklist(["balance"])), FAILED,
+				"on_loaded failure")
+		check_eq(loader.get_error_message(), "the extension failed")
+
+		check_eq(await loader.load_atlas_async(ATLAS, CFG_ROOT, null, opts()), ERR_INVALID_PARAMETER, "null atlas")
+		check_eq(loader.get_error_message(), "<archmage> atlas is null")
+
+
+func test_async_failure_stops_loading() -> void:
+	for threaded: bool in [true, false]:
+		var fs := ProbeFS.new()
+		var modifier := func(aj: Archmage.AtlasJson) -> void: aj.unique["hero"] = "nonexistent/hero.json"
+		var o := opts().with_fs(fs).with_blacklist(["balance"]).with_atlas_modifier(modifier).with_max_concurrency(1)
+		var atlas := HandConfigAtlas.new()
+		loader._use_threads = threaded
+		check_eq(await loader.load_atlas_async(ATLAS, CFG_ROOT, atlas, o), ERR_FILE_NOT_FOUND, "error code")
+		var items := atlas.atlas_items()
+		for k in ["chapter", "game"]:
+			check(items[k].ready, "%s is loaded before the failure" % k)
+		for k in ["hero", "item", "Race", "Region", "route", "skill"]:
+			check(not items[k].ready, "%s is not loaded" % k)
+		check(not fs.paths.has("res://tests/testdata/item.json"), "item.json is not read: %s" % [fs.paths])
+		check_eq(atlas.extension.loaded_count, 0, "on_loaded calls")
+
+		# The loader and the atlas can load again.
+		check_eq(await loader.load_atlas_async(ATLAS, CFG_ROOT, atlas, opts().with_blacklist(["balance"])), OK, "reload")
+		check_golden(atlas, "basic")
+
+
+signal _background_load_done
+var _background_load_err := -1
+
+
+func _background_load(p_loader: Archmage.AtlasLoader, atlas: HandConfigAtlas, o: Archmage.AtlasOptions) -> void:
+	_background_load_err = await p_loader.load_atlas_async(ATLAS, CFG_ROOT, atlas, o)
+	_background_load_done.emit()
+
+
+func test_async_busy() -> void:
+	var tree := Engine.get_main_loop() as SceneTree
+	var atlas := HandConfigAtlas.new()
+	# Why call_deferred? GDScript does not let a function start a coroutine without awaiting it.
+	_background_load.call_deferred(loader, atlas, opts().with_blacklist(["balance"]))
+	for i in 10:
+		if loader._busy:
+			break
+		await tree.process_frame
+	check(loader._busy, "the background load is running")
+
+	check_eq(loader.load_atlas(ATLAS, CFG_ROOT, HandConfigAtlas.new(), opts()), ERR_BUSY, "load_atlas of a busy loader")
+	check_eq(await loader.load_atlas_async(ATLAS, CFG_ROOT, HandConfigAtlas.new(), opts()), ERR_BUSY,
+			"load_atlas_async of a busy loader")
+	check_eq(loader.get_error_message(), "", "the message of the running load")
+
+	var other := Archmage.AtlasLoader.new()
+	check_eq(other.load_atlas(ATLAS, CFG_ROOT, atlas, opts()), ERR_BUSY, "load_atlas of an atlas being loaded")
+	check_eq(other.get_error_message(), "<archmage> another loader is loading the atlas")
+	check_eq(await other.load_atlas_async(ATLAS, CFG_ROOT, atlas, opts()), ERR_BUSY,
+			"load_atlas_async of an atlas being loaded")
+
+	if _background_load_err == -1:
+		await _background_load_done
+	check_eq(_background_load_err, OK, "background load: " + loader.get_error_message())
+	check_golden(atlas, "basic")
+	check_eq(atlas.extension.loaded_count, 1, "on_loaded calls")
+	check_eq(other.load_atlas(ATLAS, CFG_ROOT, HandConfigAtlas.new(), opts().with_blacklist(["balance"])), OK,
+			"load after the background load")
+
+
+func test_async_without_loader_reference() -> void:
+	var atlas := HandConfigAtlas.new()
+	var err := await Archmage.AtlasLoader.new().load_atlas_async(ATLAS, CFG_ROOT, atlas, opts().with_blacklist(["balance"]))
+	check_eq(err, OK, "load_atlas_async")
+	check_golden(atlas, "basic")
+
+
+func test_async_drop_atlas_frees_entries() -> void:
+	for threaded: bool in [true, false]:
+		var atlas: HandConfigAtlas = await load_ok_async(opts().with_blacklist(["balance"]), threaded)
+		var ids := atlas_ids(atlas)
+		check(ids.size() > 50, "objects found: %d" % ids.size())
+		atlas = null
+		# Why wait a frame? This function resumes inside the call that completes the load, and that call still
+		# references the atlas until this function awaits.
+		await (Engine.get_main_loop() as SceneTree).process_frame
+		var alive := ids.filter(func(id: int) -> bool: return is_instance_id_valid(id))
+		check_eq(alive.size(), 0, "objects alive after the atlas is dropped (threaded: %s)" % threaded)

@@ -226,9 +226,35 @@ func test_override_root_and_fs() -> void:
 	check_golden(load_ok(o), "override_root_and_fs")
 
 
-## The synchronous loader ignores the limit. TODO(P5): also load with load_atlas_async().
+## The synchronous loader ignores the limit; the asynchronous loader runs the items one by one.
 func test_max_concurrency() -> void:
-	check_golden(load_ok(opts().with_blacklist(["balance"]).with_max_concurrency(1)), "max_concurrency")
+	var o := opts().with_blacklist(["balance"]).with_max_concurrency(1)
+	check_golden(load_ok(o), "max_concurrency")
+	for threaded: bool in [true, false]:
+		var atlas := ConfigAtlas.new()
+		loader._use_threads = threaded
+		var err := await loader.load_atlas_async(ATLAS, CFG_ROOT, atlas, o)
+		check_eq(err, OK, "load_atlas_async (threaded: %s): %s" % [threaded, loader.get_error_message()])
+		check_golden(atlas, "max_concurrency")
+
+
+## Loads all items on worker threads several times, to expose data races between the items.
+func test_async_repeated() -> void:
+	for i in 5:
+		var atlas := ConfigAtlas.new()
+		var err := await loader.load_atlas_async(ATLAS, CFG_ROOT, atlas, opts().with_blacklist(["balance"]))
+		check_eq(err, OK, "load_atlas_async %d: %s" % [i, loader.get_error_message()])
+		check_golden(atlas, "basic")
+
+
+func test_async_load_in_place_twice() -> void:
+	var atlas := ConfigAtlas.new()
+	for i in 2:
+		var err := await loader.load_atlas_async(ATLAS, CFG_ROOT, atlas, opts().with_blacklist(["balance"]))
+		check_eq(err, OK, "load %d" % i)
+	check_eq(atlas.game_cfg.starter_items.size(), 2, "game starter_items after two loads")
+	check_eq(atlas.game_cfg.banned_words.size(), 0, "game banned_words after two loads")
+	check_golden(atlas, "basic")
 
 
 func test_load_in_place_twice() -> void:
