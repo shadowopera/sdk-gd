@@ -173,10 +173,27 @@ func test_basic() -> void:
 			check(p.summon == null or p.summon == atlas.monster_table.lookup(p.summon.id), "monster phase summon")
 
 
+func test_whitelist() -> void:
+	check_golden(load_ok(opts().with_whitelist(["hero", "item", "Race", "skill"])), "whitelist")
+
+
+func test_blacklist() -> void:
+	check_golden(load_ok(opts().with_blacklist(["balance", "game", "chapter"])), "blacklist")
+
+
 func test_variant() -> void:
 	for v in ["easy", "hard"]:
 		var atlas := load_ok(opts().with_whitelist(["balance"]).with_variant("balance", v))
 		check_golden(atlas, "variant_" + v)
+
+
+func test_atlas_modifier() -> void:
+	var modifier := func(aj: Archmage.AtlasJson) -> void:
+		aj.variant["balance"]["/"] = aj.variant["balance"]["hard"]
+		aj.unique.erase("chapter")
+		aj.unique.erase("route")
+		aj.variant.erase("game")
+	check_golden(load_ok(opts().with_atlas_modifier(modifier).with_blacklist(["chapter", "route", "game"])), "atlas_modifier")
 
 
 func test_override_root() -> void:
@@ -184,6 +201,34 @@ func test_override_root() -> void:
 			.with_override_root("res://tests/override/1") \
 			.with_override_root("res://tests/override/2")
 	check_golden(load_ok(o), "override_root")
+
+
+func test_override_fs() -> void:
+	var fs := MemoryFS.new({
+		"game.json": "{\"bgm\":\"audio/night.ogg\",\"levelRewards\":{\"40\":104},\"motd\":{\"item0\":\"Hello\"}}",
+		"item.json": "{\"105\":{\"name\":\"Aegis of Camelot\",\"tags\":[\"shield\"]}}",
+	})
+	var o := opts().with_whitelist(["game", "hero", "item", "Race", "skill"]) \
+			.with_override_root("res://tests/override/2") \
+			.with_override_fs(fs)
+	check_golden(load_ok(o), "override_fs")
+
+
+func test_override_root_and_fs() -> void:
+	var fs := MemoryFS.new({
+		"vtbl/skill-magic.json": "{\"heal\":{\"mana\":25,\"cooldown\":[0,8]}}",
+		"vtbl/skill-passive.json": "{\"aura\":{\"radius\":7}}",
+	})
+	var o := opts().with_blacklist(["balance"]) \
+			.with_override_root("res://tests/override/1") \
+			.with_override_root("res://tests/override/2") \
+			.with_override_fs(fs)
+	check_golden(load_ok(o), "override_root_and_fs")
+
+
+## The synchronous loader ignores the limit. TODO(P5): also load with load_atlas_async().
+func test_max_concurrency() -> void:
+	check_golden(load_ok(opts().with_blacklist(["balance"]).with_max_concurrency(1)), "max_concurrency")
 
 
 func test_load_in_place_twice() -> void:
