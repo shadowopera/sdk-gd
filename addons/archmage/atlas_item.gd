@@ -26,8 +26,8 @@ const DEFAULT_VARIANT := "/"
 ## loader calls it after [code]load_json[/code] when the object has it.
 ## [br]- [code]to_json() -> Variant[/code] returns the content as JSON values for [method Archmage.canonicalize]
 ## and [method Archmage.dump_atlas], with the keys of the config files, such as [code]critRate[/code]. It may
-## return nested objects that have their own [code]to_json()[/code]. A reference field is written as the ID of the
-## referenced entry, or as the zero ID when the field is [code]null[/code].
+## return nested objects that have their own [code]to_json()[/code]. A reference field is written as its config ID,
+## the zero ID when it references nothing.
 var cfg: Object
 ## [constant MAPPING_UNIQUE], [constant MAPPING_VARIANT] or [constant MAPPING_MANY].
 var mapping: String

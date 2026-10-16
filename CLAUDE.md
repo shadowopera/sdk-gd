@@ -12,6 +12,9 @@ scripts/godot-test.sh [--no-sync] [--exported] [--filter <regex>]
 
 # Sync test data from ../sdk-go to tests/testdata and tests/override
 scripts/sync-testdata.sh
+
+# Regenerate tests/enums and tests/conf (run in ../whisper)
+DIAGNOSTIC=0 just sdk-gd
 ```
 
 Set `GODOT` to override the Godot executable (default `/Applications/Godot_mono.app/Contents/MacOS/godot`). Pass `TRACE=1` to a script to trace it.
@@ -39,6 +42,7 @@ The synced data and the generated code are committed. `.gitattributes` marks eve
 - From the project directory, `scripts/godot-test.sh` passes `res://tests/test_runner.tscn` as the scene to run. The release template does not accept a scene path, so `--exported` exports the preset `macOS (tests)`, whose feature `archmage_tests` selects `run/main_scene.archmage_tests`, the runner. `scenes/main.tscn` is the main scene without that feature.
 - The preset needs `include_filter="*.json"` (Godot does not export JSON files by default) and `import_etc2_astc=true` in `project.godot` (required for arm64 and universal macOS builds). The script checks the export log for `ERROR`, because Godot can exit with 0 when an export fails.
 - The script runs `--import` before every run, so that `class_name Archmage` is registered.
+- `tests/conf_test.gd` loads `tests/testdata` with the generated code in `tests/conf`. `tests/golden/<case>/` holds its canonical output; the test also compares the values with `../sdk-go/internal/golden/<case>/`, except the fields listed in `UNCONVERTED_FIELDS` (types that json-gd does not convert yet). The Go golden files are read only in the project directory mode; the exported program skips the comparison. To rewrite the files, run `ARCHMAGE_UPDATE_GOLDEN=1 scripts/godot-test.sh --no-sync`.
 - `tests/handconf/golden/<case>/` holds the canonical output of the hand-written conf for each load case of `atlas_loader_test.gd`. Its values match `../sdk-go/internal/golden` on the fields that the hand-written conf has. To rewrite the files, run `ARCHMAGE_UPDATE_GOLDEN=1 scripts/godot-test.sh --no-sync`.
 
 ## Conventions
@@ -55,7 +59,13 @@ The synced data and the generated code are committed. `.gitattributes` marks eve
 The template is `archmage/structs/tpls/json-gd.tpl` in `../whisper`. It uses no `--namespace`, and it outputs no `@tool` and no code that affects the runtime; discuss with the user before breaking this.
 
 - Every generated type is a `RefCounted` class with typed fields and `static func from_json(d)`. Field names and file names are snake_case (`critRate` becomes `crit_rate`, `hero_table.gd`).
-- When a field name, after the snake_case conversion, is a GDScript keyword that cannot be a variable name, `json-gd` appends `_` (`class` becomes `class_`), and archmage prints a warning with the field, its source and the new name. In Godot 4.6.3, `var class`, `var func` and `var signal` are parse errors; `var match` and `var name` are not.
+- When a field name, after the snake_case conversion, is a GDScript keyword that cannot be a variable name, `json-gd` appends `_` (`class` becomes `class_`), and archmage prints a warning with the field, its source and the new name. In Godot 4.6.3, `var class`, `var func` and `var signal` are parse errors; `var match` and `var name` are not. The list is `calc::fieldName` in the template. By the user's decision, `json-gd` handles no other name conflict: a field named `int`, `script` or `to_json`, or a pubtype named like a native class such as `Timer`, makes the generated file fail to parse, and a field named like a global function, such as `exp`, gets a `shadowed_global_identifier` warning in the editor.
+- An inner class has the name that json-cs gives it: a private type keeps the prefix of its scope (`Hero_TalentsEntry`), so that it never hides a native class. A reference to a type that another file defines, such as a pubtype or the entry type of another table, is qualified with that file's class name (`ItemTable.ItemCfg`).
+- Generated local variables and parameters start with `_` (`_d`, `_x`, `_e1`, `_atlas`), so that they never shadow a field.
+- `archmage.gd` holds the JSON conversion functions (`J.i`, `J.f`, `J.s`, `J.b`) and `J.missing` for bind errors; each generated file has `const J = preload("archmage.gd")`. `atlas_version.gd` returns the version info at codegen time, read through `ConfigAtlas.code_version()`.
+- An enum field is annotated with the enum type (`SdkEnum.HeroClass`, the class name of `enum.gd.tpl`) and `@warning_ignore("enum_variable_without_default")`, and is assigned with `as`.
+- A regular table can be iterated over its config entries: `for hero in atlas.hero_table`.
+- The types that json-gd does not convert yet (duration, datetime, rgba, vector, minmax, wtpool and tuple) are `Variant` fields that hold the parsed JSON value; `to_json` writes it back unchanged. Refs inside them are not bound.
 - Each config source generates one `.gd` file. Its file-level `class_name` is the top-level type, named as in C# (`HeroTable`, `GameCfg`, `ChapterArray`, `RouteTable`); the other types are inner classes (`HeroTable.HeroCfg`).
 - A regular table is a wrapper class that holds `var entries: Dictionary[int, HeroCfg]` and provides `lookup` (reports an error when the entry is missing), `try_lookup` (returns `null`), `has`, `size` and iteration.
 - A config ID is a plain `int` or `String`. A wrapper object cannot be a `Dictionary` key, because GDScript compares objects by identity.
@@ -78,8 +88,9 @@ The SDK side is documented in `addons/archmage/atlas.gd` and `atlas_item.gd`. `t
 - The object of each item has these methods:
   - `load_json(data: Variant) -> void`. The loader merges all files and overrides of the item as parsed JSON and calls `load_json` once with the result. A `null` or missing value gives the default. `load_json` does not set the IDs of the entries. The asynchronous loader may call it on a worker thread.
   - `apply_keys() -> void`, only in regular tables, sets the ID of each entry from its key. The loader calls it after `load_json` when the object has it, as Go and C# call `ApplyKeys`.
-  - `to_json() -> Variant` returns the content with the JSON keys of the config files (`critRate`), for `Archmage.canonicalize` and the golden files. It may return nested objects that have `to_json()`. A ref is written as the ID of the referenced entry, or as the zero ID when it is `null`.
-- `from_json` keeps the ID of a ref in a private field (`_weapon_ref`) until `bind_refs` sets the ref.
+  - `to_json() -> Variant` returns the content with the JSON keys of the config files (`critRate`), for `Archmage.canonicalize` and the golden files. It may return nested objects that have `to_json()`. A ref is written as its config ID, the zero ID when it references nothing. The generated code writes the config ID that `from_json` read, so the output does not change after `unbind_refs`.
+- `from_json` keeps the ID of a ref in a private field (`_weapon_ref`), and a collection of refs as a collection of IDs of the same shape (`_starter_items_ref`). `_bind_refs` looks up the entries and rebuilds the collections of entries.
+- The generated `load_json` of an object that has refs calls `_unbind_refs()` first. Without it, the old entries of an atlas that is loaded again in place reference each other and are never freed.
 - `lookup` of the zero ID returns `null` without an error, as in Go.
 
 ### JSON and integers
