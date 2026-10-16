@@ -34,10 +34,11 @@ func load_fail(o: Archmage.AtlasOptions, code: Error, atlas_file := ATLAS, cfg_r
 
 
 ## Loads the test atlas with [code]load_atlas_async()[/code] and records a failure when the load fails. When
-## [param threaded] is false, the loader takes the path for platforms without thread support.
+## [param threaded] is false, or the platform has no thread support, the loader takes the path for platforms without
+## thread support.
 func load_ok_async(o: Archmage.AtlasOptions, threaded: bool, atlas_file := ATLAS, cfg_root := CFG_ROOT) -> HandConfigAtlas:
 	var atlas := HandConfigAtlas.new()
-	loader._use_threads = threaded
+	loader._use_threads = threaded and OS.has_feature("threads")
 	var err := await loader.load_atlas_async(atlas_file, cfg_root, atlas, o)
 	check_eq(err, OK, "load_atlas_async (threaded: %s): %s" % [threaded, loader.get_error_message()])
 	return atlas
@@ -48,7 +49,7 @@ func load_ok_async(o: Archmage.AtlasOptions, threaded: bool, atlas_file := ATLAS
 func load_fail_async(o: Archmage.AtlasOptions, code: Error, threaded: bool, atlas_file := ATLAS,
 		cfg_root := CFG_ROOT) -> String:
 	var atlas := HandConfigAtlas.new()
-	loader._use_threads = threaded
+	loader._use_threads = threaded and OS.has_feature("threads")
 	var err := await loader.load_atlas_async(atlas_file, cfg_root, atlas, o)
 	check_eq(err, code, "load_atlas_async error code (threaded: %s, %s)" % [threaded, loader.get_error_message()])
 	return loader.get_error_message()
@@ -610,6 +611,9 @@ func test_async_basic() -> void:
 
 
 func test_async_worker_threads() -> void:
+	if not OS.has_feature("threads"):
+		print("[atlas_loader_test] no thread support; skipped test_async_worker_threads")
+		return
 	for n: int in [1, 2]:
 		var fs := ProbeFS.new()
 		fs.delay_msec = 20
@@ -663,7 +667,7 @@ func test_async_errors() -> void:
 		msg = await load_fail_async(opts().with_blacklist(["balance"]).with_override_fs(fs), ERR_INVALID_DATA, threaded)
 		check_eq(msg, "<archmage> failed to bind refs | hero[3].weapon: ItemTable: config entry not found for ID 999")
 
-		loader._use_threads = threaded
+		loader._use_threads = threaded and OS.has_feature("threads")
 		var atlas := HandConfigAtlas.new()
 		atlas.atlas_items()["route"].mapping = "single"
 		check_eq(await loader.load_atlas_async(ATLAS, CFG_ROOT, atlas, opts().with_whitelist(["route"])), ERR_INVALID_DATA,
@@ -686,7 +690,7 @@ func test_async_failure_stops_loading() -> void:
 		var modifier := func(aj: Archmage.AtlasJson) -> void: aj.unique["hero"] = "nonexistent/hero.json"
 		var o := opts().with_fs(fs).with_blacklist(["balance"]).with_atlas_modifier(modifier).with_max_concurrency(1)
 		var atlas := HandConfigAtlas.new()
-		loader._use_threads = threaded
+		loader._use_threads = threaded and OS.has_feature("threads")
 		check_eq(await loader.load_atlas_async(ATLAS, CFG_ROOT, atlas, o), ERR_FILE_NOT_FOUND, "error code")
 		var items := atlas.atlas_items()
 		for k in ["chapter", "game"]:

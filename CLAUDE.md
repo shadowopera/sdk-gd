@@ -10,6 +10,11 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 # Summary: logs/godot-<path|exported>-summary.txt
 scripts/godot-test.sh [--no-sync] [--exported] [--filter <regex>]
 
+# Export the tests for Web with the standard (non-.NET) editor and run them in headless Chrome; --threads exports
+# the build with thread support. Needs /Applications/Godot.app (or GODOT_STANDARD), its Web export templates,
+# Chrome (or CHROME) and node. Summary: logs/godot-<web|web-threads>-summary.txt
+scripts/godot-web-test.sh [--threads]
+
 # Sync test data from ../sdk-go to tests/testdata and tests/override
 scripts/sync-testdata.sh
 
@@ -44,7 +49,7 @@ The synced data and the generated code are committed. `.gitattributes` marks eve
 - The script runs `--import` before every run, so that `class_name Archmage` is registered.
 - `tests/conf_test.gd` loads `tests/testdata` with the generated code in `tests/conf`. `tests/golden/<case>/` holds its canonical output for each of the 10 golden cases of the Go SDK; the test also compares the values with `../sdk-go/internal/golden/<case>/`, where `null` equals an empty array or object. The Go golden files are read only in the project directory mode; the exported program skips the comparison. To rewrite the files, run `ARCHMAGE_UPDATE_GOLDEN=1 scripts/godot-test.sh --no-sync`. In `../sdk-go`, `go test ./internal -run TestPorting -porting` compares `tests/golden` with the Go golden files as well.
 - `tests/handconf/golden/<case>/` holds the canonical output of the hand-written conf for each load case of `atlas_loader_test.gd`. Its values match `../sdk-go/internal/golden` on the fields that the hand-written conf has. To rewrite the files, run `ARCHMAGE_UPDATE_GOLDEN=1 scripts/godot-test.sh --no-sync`.
-- An async test sets `loader._use_threads = false` to run the path for platforms without thread support. A function that awaits `load_atlas_async()` resumes inside the call that completes the load, which still references the atlas; a test that checks that the atlas is freed awaits a frame first. GDScript does not let a function start a coroutine without awaiting it, so a test that needs a load running in the background starts it with `call_deferred`.
+- An async test sets `_use_threads = false` on the loader or the `I18n` to run the path for platforms without thread support; in a build without thread support, it stays `false` for every test, and the tests that check worker threads are skipped. `scripts/godot-web-test.sh` runs all tests in a Web build: the presets `Web (tests)` and `Web threads (tests)` have the feature `archmage_tests`, and the harness serves them with the COOP/COEP headers that a build with thread support needs. A function that awaits `load_atlas_async()` resumes inside the call that completes the load, which still references the atlas; a test that checks that the atlas is freed awaits a frame first. GDScript does not let a function start a coroutine without awaiting it, so a test that needs a load running in the background starts it with `call_deferred`.
 
 ## Conventions
 
@@ -123,7 +128,7 @@ GDScript has no exceptions, so the SDK follows the conventions of the Godot API.
 - Both must work in Web exports. Without thread support (`OS.has_feature("threads")` is false), the async API loads one item per frame on the main thread; without a `SceneTree`, it loads everything in one call.
 - A loader runs one load at a time, and an atlas is loaded by one loader at a time (`Archmage.Atlas._loading`); otherwise the load returns `ERR_BUSY`.
 - The load options are logger, FS, atlas modifier, whitelist, blacklist, variant, override root, override FS and max concurrency.
-- `Archmage.I18n` behaves as the I18n of the Go and C# SDKs (`l10n.json`, `l10n.<lang>.json`, fallback). A language is a plain string. `merge_l10n_file` and `merge_l10n_data` return an `Error` code and set `get_error_message()`, as the loader does, and merge nothing on failure. `get_text` returns `null` for a missing key; `text` returns the key.
+- `Archmage.I18n` behaves as the I18n of the Go and C# SDKs (`l10n.json`, `l10n.<lang>.json`, fallback). A language is a plain string. `merge_l10n_file` and `merge_l10n_data` return an `Error` code and set `get_error_message()`, as the loader does, and merge nothing on failure. `merge_l10n_file_async`, used with `await`, reads and parses on a `WorkerThreadPool` task and merges on the main thread; without thread support it runs on the main thread. `get_text` returns `null` for a missing key; `text` returns the key.
 - The SDK does not register texts with `TranslationServer`: l10n keys are config data read through `L10n.text`, and `tr()` differs from `I18n` (it takes the fallback language from the project settings and treats `""` as missing).
 
 ### Editor plugin (`godot-editor-gd`)

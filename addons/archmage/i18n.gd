@@ -13,16 +13,52 @@
 ##     push_error(i18n.get_error_message())
 ## var title := i18n.text(atlas.game_cfg.title, "fr")
 ## [/codeblock]
+## [method merge_l10n_file_async] reads and parses the file without blocking the main thread:
+## [codeblock]
+## var err := await i18n.merge_l10n_file_async("res://configs/l10n.json", "en")
+## [/codeblock]
 ## A language is identified by the string passed to the methods, such as [code]"fr"[/code]; this class does not
 ## interpret it.
 extends RefCounted
 
 const FileAccessFS = preload("file_access_fs.gd")
 const FS = preload("fs.gd")
+const I18n = preload("i18n.gd")
+
+
+## Reads and parses an l10n file. [method run] may run on a worker thread, so it uses only the fields of this object.
+class _L10nFileJob extends RefCounted:
+	var fs: FS
+	var path: String
+	var err: Error = OK
+	var message := ""
+	## The texts to merge, or [code]null[/code] when the file is [code]null[/code].
+	var texts: Variant
+
+	func _init(p_fs: FS, p_path: String) -> void:
+		fs = p_fs
+		path = p_path
+
+	func run() -> void:
+		var res: Variant = fs.read_file(path)
+		if res is int:
+			err = res
+			message = "<archmage> failed to read l10n file \"%s\": %s" % [path, error_string(res)]
+			return
+		var parsed: Variant = I18n._parse_l10n_data(res)
+		if parsed is String:
+			err = ERR_PARSE_ERROR
+			message = "<archmage> failed to merge l10n file \"%s\" | %s" % [path, parsed]
+			return
+		texts = parsed
+
 
 var _fallback: String
 var _texts: Dictionary[String, Dictionary] = {}
 var _error_message := ""
+## Whether [method merge_l10n_file_async] uses the WorkerThreadPool. Tests set it to [code]false[/code] to run the
+## path for platforms without thread support.
+var _use_threads := OS.has_feature("threads")
 
 
 func _init(fallback_language: String) -> void:
@@ -66,22 +102,34 @@ func merge_l10n_data(data: PackedByteArray, lang: String) -> Error:
 ## file system when the file cannot be read, or [constant ERR_PARSE_ERROR]; [method get_error_message] then returns
 ## the message.
 func merge_l10n_file(path: String, lang: String, fs: FS = null) -> Error:
-	_error_message = ""
-	if fs == null:
-		fs = FileAccessFS.new()
-	var res: Variant = fs.read_file(path)
-	if res is int:
-		_error_message = "<archmage> failed to read l10n file \"%s\": %s" % [path, error_string(res)]
-		return res
-	var msg := _merge_l10n_data(res, lang)
-	if msg != "":
-		_error_message = "<archmage> failed to merge l10n file \"%s\" | %s" % [path, msg]
-		return ERR_PARSE_ERROR
-	return OK
+	var job := _L10nFileJob.new(fs if fs != null else FileAccessFS.new(), path)
+	job.run()
+	return _finish(job, lang)
 
 
-## Returns the message of the last failed [method merge_l10n_data] or [method merge_l10n_file], or an empty string
-## when it succeeded.
+## Merges the l10n file at [param path] as [method merge_l10n_file] does, without blocking the main thread, and
+## returns the same codes. Call it on the main thread with [code]await[/code].
+## [br][br]
+## A thread of the [WorkerThreadPool] reads and parses the file, and the main thread merges the texts. Without thread
+## support, as in a Web export without threads, the file is read and parsed on the main thread.
+func merge_l10n_file_async(path: String, lang: String, fs: FS = null) -> Error:
+	# Why a local reference? Without it, the merge stops at its first await when the caller does not keep the I18n.
+	var me := self
+	var job := _L10nFileJob.new(fs if fs != null else FileAccessFS.new(), path)
+	# Without a SceneTree there is no frame to await, so everything runs in this call.
+	var tree := Engine.get_main_loop() as SceneTree
+	if tree == null or not _use_threads:
+		job.run()
+	else:
+		var task := WorkerThreadPool.add_task(job.run, false, "archmage: " + path)
+		while not WorkerThreadPool.is_task_completed(task):
+			await tree.process_frame
+		WorkerThreadPool.wait_for_task_completion(task)
+	return me._finish(job, lang)
+
+
+## Returns the message of the last failed [method merge_l10n_data], [method merge_l10n_file] or
+## [method merge_l10n_file_async], or an empty string when it succeeded.
 func get_error_message() -> String:
 	return _error_message
 
@@ -105,15 +153,35 @@ func text(key: String, lang: String) -> String:
 	return key if t == null else t
 
 
+## Sets [member _error_message] from [param job] and, when it succeeded, merges its texts into [param lang].
+## The message is set when the call returns, so that a call that overlaps another one reports its own result.
+func _finish(job: _L10nFileJob, lang: String) -> Error:
+	_error_message = job.message
+	if job.err == OK and job.texts != null:
+		merge_texts(job.texts, lang)
+	return job.err
+
+
 ## Returns an empty string after merging the texts of [param data], or a message that describes why [param data] is
 ## not a JSON object of strings.
 func _merge_l10n_data(data: PackedByteArray, lang: String) -> String:
+	var parsed: Variant = _parse_l10n_data(data)
+	if parsed is String:
+		return parsed
+	if parsed != null:
+		merge_texts(parsed, lang)
+	return ""
+
+
+## Returns the texts of [param data] as a [Dictionary], [code]null[/code] when the file is [code]null[/code], or a
+## message that describes why [param data] is not a JSON object of strings. It may run on a worker thread.
+static func _parse_l10n_data(data: PackedByteArray) -> Variant:
 	var json := JSON.new()
 	if json.parse(data.get_string_from_utf8()) != OK:
 		return "%s at line %d" % [json.get_error_message(), json.get_error_line() + 1]
 	var d: Variant = json.data
 	if d == null:
-		return ""
+		return null
 	if not d is Dictionary:
 		return "expected an object"
 	var texts := {}
@@ -125,5 +193,4 @@ func _merge_l10n_data(data: PackedByteArray, lang: String) -> String:
 			texts[k] = v
 		else:
 			return "$['%s']: expected a string" % k
-	merge_texts(texts, lang)
-	return ""
+	return texts

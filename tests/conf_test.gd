@@ -232,7 +232,7 @@ func test_max_concurrency() -> void:
 	check_golden(load_ok(o), "max_concurrency")
 	for threaded: bool in [true, false]:
 		var atlas := ConfigAtlas.new()
-		loader._use_threads = threaded
+		loader._use_threads = threaded and OS.has_feature("threads")
 		var err := await loader.load_atlas_async(ATLAS, CFG_ROOT, atlas, o)
 		check_eq(err, OK, "load_atlas_async (threaded: %s): %s" % [threaded, loader.get_error_message()])
 		check_golden(atlas, "max_concurrency")

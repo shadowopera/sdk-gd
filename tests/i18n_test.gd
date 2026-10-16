@@ -55,6 +55,33 @@ func test_merge_l10n_file() -> void:
 			"missing file message")
 
 
+func test_merge_l10n_file_async() -> void:
+	for threaded: bool in [true, false]:
+		var i18n := I18n.new("en")
+		i18n._use_threads = threaded and OS.has_feature("threads")
+		var err := await i18n.merge_l10n_file_async(CFG_ROOT.path_join("l10n.json"), "en")
+		check_eq(err, OK, "l10n.json (threaded: %s): %s" % [threaded, i18n.get_error_message()])
+		err = await i18n.merge_l10n_file_async(CFG_ROOT.path_join("l10n.cn.json"), "zh")
+		check_eq(err, OK, "l10n.cn.json (threaded: %s): %s" % [threaded, i18n.get_error_message()])
+		check_eq(i18n.text("l10n.xlsx|game.title", "zh"), "阿瓦隆传说", "translated")
+		check_eq(i18n.text("game|$.tips.login", "zh"), "Welcome back!", "falls back to en")
+		check_eq(i18n.get_error_message(), "", "error message after success")
+
+		var fs := MemoryFS.new({"bad.json": "{\"x\": 1}", "invalid.json": "{]", "null.json": "null"})
+		check_eq(await i18n.merge_l10n_file_async("null.json", "fr", fs), OK, "null file")
+		check(not i18n.get_all_texts().has("fr"), "a null file merges nothing")
+		check_eq(await i18n.merge_l10n_file_async("invalid.json", "en", fs), ERR_PARSE_ERROR, "invalid JSON")
+		check(i18n.get_error_message().begins_with("<archmage> failed to merge l10n file \"invalid.json\" | "),
+				i18n.get_error_message())
+		check_eq(await i18n.merge_l10n_file_async("bad.json", "en", fs), ERR_PARSE_ERROR, "bad file")
+		check_eq(i18n.get_error_message(), "<archmage> failed to merge l10n file \"bad.json\" | $['x']: expected a string",
+				"bad file message")
+		check_eq(await i18n.merge_l10n_file_async("missing.json", "en", fs), ERR_FILE_NOT_FOUND, "missing file")
+		check_eq(i18n.get_error_message(), "<archmage> failed to read l10n file \"missing.json\": File not found",
+				"missing file message")
+		check_eq(i18n.text("l10n.xlsx|game.title", "en"), "Legends of Avalon", "texts are kept after failures")
+
+
 func test_get_text_and_text() -> void:
 	# [texts by language, key, lang, text or null]
 	var cases := [
