@@ -36,7 +36,7 @@ Set `GODOT` to override the Godot executable (default `/Applications/Godot_mono.
 | `scripts/` | Test and sync scripts |
 | `logs/`, `builds/` | Output of `scripts/godot-test.sh`; not committed, and hidden from Godot by `.gdignore` |
 
-The synced data and the generated code are committed. `.gitattributes` marks everything except `addons/` as `export-ignore`, so the Asset Library zip contains only `addons/`.
+The synced data and the generated code are committed. `.gitattributes` marks everything except `addons/archmage/` as `export-ignore`, so the Asset Library zip contains only the SDK. `addons/archmage_editor/` is excluded because it references the classes in `tests/conf`.
 
 ### Tests
 
@@ -133,6 +133,9 @@ GDScript has no exceptions, so the SDK follows the conventions of the Godot API.
 
 ### Editor plugin (`godot-editor-gd`)
 
-- It is generated into `addons/archmage_editor/` with its own `plugin.cfg`. It loads configs in the editor, shows `@export` config ID properties (single and array) as dropdowns, reloads configs from the Tool menu, and registers display format functions.
-- A property is marked with `@export_custom(CfgIdProp.HINT, CfgIdProp.HERO)` and a generated constant.
+- The `sdk-gd` recipe generates it into `addons/archmage_editor/`. It writes `plugin.cfg` and `archmage_editor_plugin.gd` only when they do not exist, so edit those two here; this copy loads `res://tests/testdata` and registers display formatters for hero and race. To change the other files, edit `../whisper/archmage/structs/tpls/godot-editor-gd.tpl`. `project.godot` enables the plugin, and the root node of `scenes/main.tscn` (`scenes/main.gd`) exports the config ID properties that it shows as dropdowns.
+- The plugin mirrors `godot-editor-cs`: the configs are loaded when the Inspector first shows an object, the Tool menu item "Reload Game Configs for Editor" loads them again, and `_initialize_cfg_id_choices` registers the choices with `CfgIdChoices.register_defaults(atlas)` and `CfgIdChoices.register_<table>(table, format)`.
+- Only `cfg_id_prop.gd` has a `class_name` (`CfgIdProp`), because game code uses it; the editor scripts preload each other. Only the EditorPlugin, EditorInspectorPlugin and EditorProperty scripts have `@tool`.
+- A single config ID property is marked with `@export_custom(CfgIdProp.HINT, CfgIdProp.HERO)` and has the type `int` or `String`; an array uses `CfgIdProp.HERO_ARRAY` and has the type `Array[int]` or `Array[String]`. `HINT` is `PROPERTY_HINT_TYPE_STRING`. The array editor of Godot passes `PROPERTY_HINT_NONE` and the part of the hint string after `:` to the editor of each element, so `cfg_id_inspector_plugin.gd` accepts both hints.
+- Godot reports no warnings for scripts under `res://addons` by default (`debug/gdscript/warnings/directory_rules`). To check the plugin for warnings, use a copy of the project with the rules set to `{"res://": 0, "res://addons/archmage_editor": 1}` and each warning set to 2, and run `godot --headless --editor`.
 - A `@tool` EditorPlugin can call a non-`@tool` `RefCounted` script in the editor: `static func`, `new()` and instance methods all run.
