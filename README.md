@@ -415,3 +415,7 @@ scripts/sync-testdata.sh                              # sync tests/testdata and 
 ```
 
 To regenerate `tests/enums`, `tests/conf` and `addons/archmage_editor`, run `DIAGNOSTIC=0 just sdk-gd` in `../whisper`. To update the documentation site, run `docs/update.sh`. See `CLAUDE.md` for the requirements of each script.
+
+## License
+
+Apache 2.0. See [LICENSE](LICENSE) for details.

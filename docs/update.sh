@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
-# Generates the GDScript pages of the docs site in ../docs/archmage: overview-gd from README.md, sdk-gd and gen-gd
-# from the doc comments of addons/archmage and tests/conf, and gen-gd-editor from docs/gen-gd-editor.
+# Generates the GDScript pages of the docs site in ../docs/archmage: overview-gd from README.md and CHANGELOG.md,
+# sdk-gd and gen-gd from the doc comments of addons/archmage and tests/conf, and gen-gd-editor from docs/gen-gd-editor.
 #
 # Set GODOT to the Godot executable to override /Applications/Godot_mono.app.
 
@@ -39,10 +39,12 @@ if [[ ! -d "$siteDir" ]]; then
     printError "$siteDir does not exist"
     exit 1
 fi
-if [[ ! -f README.md ]]; then
-    printError "README.md does not exist"
-    exit 1
-fi
+for f in README.md CHANGELOG.md; do
+    if [[ ! -f "$f" ]]; then
+        printError "$f does not exist"
+        exit 1
+    fi
+done
 editorPages=(docs/gen-gd-editor/*.mdx)
 if [[ ! -f "${editorPages[0]}" ]]; then
     printError "docs/gen-gd-editor has no .mdx files"
@@ -98,6 +100,19 @@ printMessage "Generating $siteDir/overview-gd/sdk-gd.mdx ..."
         perl -pe 's|\./images/archmage\.jpg|../../../assets/archmage/archmage.jpg|g' | \
         perl -0777 -pe 's/^> \[!NOTE\]\n((?:> [^\n]*\n?)+)/my $b=$1; $b=~s{^> }{}gm; ":::note\n${b}:::\n"/gme'
 } > "$siteDir/overview-gd/sdk-gd.mdx"
+
+# Process CHANGELOG.md for Starlight
+printMessage "Generating $siteDir/overview-gd/CHANGELOG.md ..."
+{
+    echo "---"
+    echo "title: 'GDScript SDK Changelog'"
+    echo "sidebar:"
+    echo "  label: Changelog"
+    echo "  order: 100"
+    echo "---"
+    echo ""
+    tail -n +3 CHANGELOG.md
+} > "$siteDir/overview-gd/CHANGELOG.md"
 
 printMessage "Generating $siteDir/sdk-gd and $siteDir/gen-gd ..."
 if ! node docs/gdscript-docs.mjs "$xml_tmp/sdk" "$xml_tmp/conf" "$siteDir"; then

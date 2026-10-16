@@ -24,6 +24,13 @@ DIAGNOSTIC=0 just sdk-gd
 # Generate the overview-gd, sdk-gd, gen-gd and gen-gd-editor pages into ../docs/archmage (doctool XML converted by
 # docs/gdscript-docs.mjs) and stage the docs repo; then build there with pnpm build
 docs/update.sh
+
+# Set Archmage.VERSION in addons/archmage/archmage.gd and commit it
+scripts/bump-version.sh [--yes] <version>
+
+# Release with relstep (progress in release.json, not committed): tests in both modes, CHANGELOG.md, bump and tag.
+# It does not push; pushing a v* tag runs .github/workflows/release.yml, which tests on Linux and publishes the zip
+scripts/release.sh <version>
 ```
 
 Set `GODOT` to override the Godot executable (default `/Applications/Godot_mono.app/Contents/MacOS/godot`). Pass `TRACE=1` to a script to trace it.

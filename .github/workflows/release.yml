@@ -1,0 +1,71 @@
+name: Test and Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+env:
+  GODOT_VERSION: 4.6.3
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v5
+
+    - name: Verify version matches tag
+      run: |
+        TAG_VER="${GITHUB_REF_NAME#v}"
+        SDK_VER=$(sed -n 's/^const VERSION := "\(.*\)"$/\1/p' addons/archmage/archmage.gd)
+        if [ "$TAG_VER" != "$SDK_VER" ]; then
+          echo "Tag version ($TAG_VER) does not match Archmage.VERSION ($SDK_VER)"
+          exit 1
+        fi
+        echo "Version verified: $TAG_VER"
+
+    - name: Extract changelog
+      run: |
+        VERSION="${GITHUB_REF_NAME#v}"
+        NOTES=$(awk "/^## \[${VERSION}\]/{found=1; next} found && /^## \[/{exit} found{print}" CHANGELOG.md)
+        if [ -z "$(echo "$NOTES" | tr -d '[:space:]')" ]; then
+          echo "No changelog entry found for version $VERSION"
+          exit 1
+        fi
+        echo "Changelog extracted for $VERSION"
+        printf '%s' "$NOTES" > "$RUNNER_TEMP/release-notes.md"
+
+    - name: Install Godot
+      run: |
+        NAME="Godot_v${GODOT_VERSION}-stable_linux.x86_64"
+        curl -fsSL -o "$RUNNER_TEMP/godot.zip" \
+          "https://github.com/godotengine/godot/releases/download/${GODOT_VERSION}-stable/${NAME}.zip"
+        unzip -q "$RUNNER_TEMP/godot.zip" -d "$RUNNER_TEMP/godot"
+        echo "GODOT=$RUNNER_TEMP/godot/${NAME}" >> "$GITHUB_ENV"
+
+    # The test data is committed, so the sync from ../sdk-go is skipped; conf_test skips the comparison with the Go
+    # golden files when ../sdk-go does not exist.
+    - name: Test
+      run: scripts/godot-test.sh --no-sync
+
+    # .gitattributes marks everything except addons/archmage/ as export-ignore.
+    - name: Pack zip
+      run: |
+        VERSION="${GITHUB_REF_NAME#v}"
+        mkdir -p artifacts
+        git archive --format=zip --output "artifacts/archmage-sdk-gd-${VERSION}.zip" "$GITHUB_REF_NAME"
+
+    - name: Create GitHub Release
+      run: |
+        VERSION="${GITHUB_REF_NAME#v}"
+        gh release create "v${VERSION}" \
+          --title "v${VERSION}" \
+          --notes-file "$RUNNER_TEMP/release-notes.md" \
+          "artifacts/archmage-sdk-gd-${VERSION}.zip"
+      env:
+        GH_TOKEN: ${{ github.token }}
