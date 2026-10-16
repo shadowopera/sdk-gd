@@ -15,6 +15,10 @@ run/main_scene="res://scenes/main.tscn"
 config/features=PackedStringArray("4.6", "GL Compatibility")
 run/main_scene.archmage_tests="res://tests/test_runner.tscn"
 
+[dotnet]
+
+project/assembly_name="ArchmageDev"
+
 [rendering]
 
 renderer/rendering_method="gl_compatibility"

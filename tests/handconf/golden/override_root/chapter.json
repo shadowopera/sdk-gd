@@ -1,0 +1,32 @@
+[
+	{
+		"hero": 1,
+		"id": "prologue",
+		"recommended": [
+			1,
+			2
+		],
+		"title": "The Sword in the Stone",
+		"waves": [
+			3,
+			5,
+			8
+		]
+	},
+	{
+		"hero": 2,
+		"id": "darkwood",
+		"recommended": [],
+		"title": "Into the Dark Wood",
+		"waves": []
+	},
+	{
+		"hero": 0,
+		"id": "finale",
+		"recommended": [
+			4
+		],
+		"title": "The Frozen Throne",
+		"waves": []
+	}
+]

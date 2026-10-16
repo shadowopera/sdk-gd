@@ -1,0 +1,30 @@
+{
+	"allowedClasses": [
+		1,
+		2,
+		3
+	],
+	"bannedWords": [],
+	"bgm": "audio/night.ogg",
+	"features": {
+		"guild": true,
+		"pvp": true,
+		"trade": true
+	},
+	"levelCaps": [],
+	"levelRewards": {
+		"10": 103,
+		"20": 101,
+		"40": 104
+	},
+	"maxLevel": 80,
+	"slotSizes": [
+		10
+	],
+	"startHero": 1,
+	"starterItems": [
+		101,
+		103
+	],
+	"title": "l10n.xlsx|game.title"
+}

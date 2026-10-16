@@ -1,0 +1,25 @@
+{
+	"Camelot": {
+		"climate": "temperate",
+		"id": "Camelot",
+		"name": "Camelot",
+		"neighbors": [
+			"Darkwood"
+		]
+	},
+	"Darkwood": {
+		"climate": "humid",
+		"id": "Darkwood",
+		"name": "Dark Wood",
+		"neighbors": [
+			"Camelot",
+			"Frostpeak"
+		]
+	},
+	"Frostpeak": {
+		"climate": "",
+		"id": "Frostpeak",
+		"name": "Frost Peak",
+		"neighbors": []
+	}
+}

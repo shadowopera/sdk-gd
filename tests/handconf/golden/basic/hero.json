@@ -1,0 +1,116 @@
+{
+	"1": {
+		"class": 1,
+		"critRate": 0.25,
+		"dodge": 0.125,
+		"exp": 999999999999999,
+		"gold": 999999999999999,
+		"growth": {
+			"atk": 2.5,
+			"hp": 30
+		},
+		"hp": 2147483647,
+		"id": 1,
+		"level": 60,
+		"name": "l10n.xlsx|hero.arthur",
+		"playable": true,
+		"race": "Human",
+		"stats": {
+			"atk": 88.5,
+			"hp": 1200
+		},
+		"talents": [
+			{
+				"skill": "slash",
+				"tier": 1
+			},
+			{
+				"skill": "rally",
+				"tier": 3
+			}
+		],
+		"title": "  the Once and Future King  ",
+		"weapon": 101,
+		"weaponId": 101
+	},
+	"2": {
+		"class": 2,
+		"critRate": -0.015,
+		"dodge": 6674.28,
+		"exp": 0,
+		"gold": -999999999999999,
+		"growth": {
+			"atk": 4,
+			"hp": 20
+		},
+		"hp": -2147483648,
+		"id": 2,
+		"level": 255,
+		"name": "hero|2|$.name",
+		"playable": false,
+		"race": "Elf",
+		"stats": {
+			"atk": 120,
+			"hp": 800
+		},
+		"talents": [
+			{
+				"skill": "fireball",
+				"tier": 5
+			}
+		],
+		"title": "Archmage\nof Camelot",
+		"weapon": 102,
+		"weaponId": 0
+	},
+	"3": {
+		"class": 3,
+		"critRate": 0,
+		"dodge": 0,
+		"exp": 0,
+		"gold": 0,
+		"growth": {
+			"atk": 0,
+			"hp": 0
+		},
+		"hp": 1,
+		"id": 3,
+		"level": 1,
+		"name": "l10n.xlsx|common.tbd",
+		"playable": false,
+		"race": "Human",
+		"stats": {
+			"atk": 0,
+			"hp": 0
+		},
+		"talents": [],
+		"title": "Fay's \"dark\" \\ art",
+		"weapon": 0,
+		"weaponId": 103
+	},
+	"4": {
+		"class": 0,
+		"critRate": 0,
+		"dodge": 0,
+		"exp": 0,
+		"gold": 0,
+		"growth": {
+			"atk": 0,
+			"hp": 0
+		},
+		"hp": 100,
+		"id": 4,
+		"level": 1,
+		"name": "",
+		"playable": false,
+		"race": "",
+		"stats": {
+			"atk": 0,
+			"hp": 0
+		},
+		"talents": [],
+		"title": "",
+		"weapon": 0,
+		"weaponId": 0
+	}
+}

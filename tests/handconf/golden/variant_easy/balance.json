@@ -1,0 +1,11 @@
+{
+	"dmgScale": 1,
+	"enemyLevel": -2,
+	"goldBonus": 0.5,
+	"hpScale": 0.8,
+	"xpCurve": [
+		100,
+		200,
+		400
+	]
+}
