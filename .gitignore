@@ -130,3 +130,7 @@ http-client.private.env.json
 # ==[custom]================================================
 
 /release.json
+/logs/*
+!/logs/.gdignore
+/builds/*
+!/builds/.gdignore

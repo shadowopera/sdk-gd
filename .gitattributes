@@ -1,0 +1,16 @@
+# Default: normalize line endings in the repository, check out as LF
+* text=auto eol=lf
+
+# The Asset Library zip contains only addons/
+/* export-ignore
+/addons !export-ignore
+/addons/** !export-ignore
+
+# Binary: never touch line endings
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.svg text eol=lf
+*.ogg binary
+*.wav binary
+*.mp3 binary

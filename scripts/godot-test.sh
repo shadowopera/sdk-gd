@@ -1,0 +1,159 @@
+#!/usr/bin/env bash
+
+# Runs the tests of the Godot project in the repository root on the Godot main thread.
+#
+# Usage: scripts/godot-test.sh [--no-sync] [--exported] [--filter <regex>]
+#   --no-sync         skip scripts/sync-testdata.sh
+#   --exported        export the "macOS (tests)" preset with the release template and run the exported program,
+#                     which reads res:// from its .pck; without it, the tests run from the project directory
+#   --filter <regex>  run only the tests whose script.method matches (e.g. archmage_test)
+#
+# The log and a summary go to logs/godot-<mode>.log and godot-<mode>-summary.txt (mode: path or exported).
+# The exit code is the exit code of Godot: 0 when all tests pass.
+#
+# Set GODOT to the Godot executable to override /Applications/Godot_mono.app.
+
+[[ "$TRACE" ]] && set -x
+pushd "$(dirname "$0")" > /dev/null
+trap __EXIT EXIT
+
+colorful=false
+if [[ -t 1 ]] && [[ -n "${TERM:-}" ]]; then
+    colorful=true
+fi
+
+function __EXIT() {
+    popd > /dev/null
+}
+
+function printMessage() {
+    local timestamp=$([ -n "${WTS:-}" ] && [ "${WTS}" != "0" ] && date +'[%Y-%m-%d %H:%M:%S] ')
+    >&2 echo "${timestamp}$*"
+}
+
+function printError() {
+    $colorful && tput setaf 1 || true
+    local timestamp=$([ -n "${WTS:-}" ] && [ "${WTS}" != "0" ] && date +'[%Y-%m-%d %H:%M:%S] ')
+    >&2 echo "${timestamp}ERROR: $*"
+    $colorful && tput sgr0 || true
+}
+
+function printImportantMessage() {
+    $colorful && tput setaf 3 || true
+    local timestamp=$([ -n "${WTS:-}" ] && [ "${WTS}" != "0" ] && date +'[%Y-%m-%d %H:%M:%S] ')
+    >&2 echo "${timestamp}$*"
+    $colorful && tput sgr0 || true
+}
+
+# Move to project root
+cd ..
+
+PROJECT_DIR="$(pwd)"
+LOG_DIR="$PROJECT_DIR/logs"
+
+# 1) Parse arguments
+sync=true
+exported=false
+filter=""
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        --no-sync)
+            sync=false
+            shift
+            ;;
+        --exported)
+            exported=true
+            shift
+            ;;
+        --filter)
+            filter="$2"
+            shift 2
+            ;;
+        *)
+            printError "Unknown argument: $1"
+            echo "Usage: ./scripts/godot-test.sh [--no-sync] [--exported] [--filter <regex>]"
+            exit 1
+            ;;
+    esac
+done
+
+mode=path
+$exported && mode=exported
+LOG_FILE="$LOG_DIR/godot-$mode.log"
+SUMMARY_FILE="$LOG_DIR/godot-$mode-summary.txt"
+
+# 2) Locate Godot
+GODOT="${GODOT:-/Applications/Godot_mono.app/Contents/MacOS/godot}"
+if [[ ! -x "$GODOT" ]]; then
+    printError "Godot not found at $GODOT. Set GODOT to the Godot executable."
+    exit 1
+fi
+
+if $exported; then
+    godot_version="$("$GODOT" --version | sed -E 's/\.[^.]+\.[^.]+$//')"
+    templates_dir="$HOME/Library/Application Support/Godot/export_templates/$godot_version"
+    if [[ ! -f "$templates_dir/macos.zip" ]]; then
+        printError "Export templates $godot_version not found in $templates_dir."
+        printError "Install them in the Godot editor: Editor > Manage Export Templates > Download and Install."
+        exit 1
+    fi
+fi
+
+# 3) Sync test data
+if $sync; then
+    if ! scripts/sync-testdata.sh; then
+        printError "sync-testdata.sh failed."
+        exit 1
+    fi
+    echo
+fi
+
+# 4) Import, so that the class_name of the SDK is registered
+echo
+printImportantMessage "Importing resources..."
+if ! "$GODOT" --headless --path "$PROJECT_DIR" --import > /dev/null 2>&1; then
+    printError "Godot failed to import the project. Run: $GODOT --headless --path $PROJECT_DIR --import"
+    exit 1
+fi
+
+mkdir -p "$LOG_DIR"
+rm -f "$SUMMARY_FILE"
+
+# 5) Export. The "macOS (tests)" preset has the feature archmage_tests, which makes the runner the main scene.
+#    Godot may exit with 0 even when the export fails, so the log is checked too.
+if $exported; then
+    APP="$PROJECT_DIR/builds/ArchmageDevTests.app"
+    EXPORT_LOG_FILE="$LOG_DIR/godot-export.log"
+    rm -rf "$APP"
+    printImportantMessage "Exporting the macOS (tests) preset (log: $EXPORT_LOG_FILE)..."
+    if ! "$GODOT" --headless --path "$PROJECT_DIR" --export-release "macOS (tests)" "$APP" > "$EXPORT_LOG_FILE" 2>&1 \
+        || grep -q "ERROR" "$EXPORT_LOG_FILE" || [[ ! -x "$APP/Contents/MacOS/ArchmageDev" ]]; then
+        printError "Export failed. See $EXPORT_LOG_FILE."
+        exit 1
+    fi
+fi
+
+# 6) Run tests. In --path mode, the runner scene is passed as the scene to run, so the main scene (the demo) does
+#    not start. The exported program does not accept a scene path, and starts the runner as its main scene.
+user_args=(--summary "$SUMMARY_FILE")
+if [[ -n "$filter" ]]; then
+    user_args+=(--filter "$filter")
+fi
+
+printImportantMessage "Running tests (log: $LOG_FILE)..."
+echo
+if $exported; then
+    "$APP/Contents/MacOS/ArchmageDev" --headless -- "${user_args[@]}" 2>&1 | tee "$LOG_FILE"
+    status=${PIPESTATUS[0]}
+else
+    "$GODOT" --headless --path "$PROJECT_DIR" res://tests/test_runner.tscn -- "${user_args[@]}" 2>&1 | tee "$LOG_FILE"
+    status=${PIPESTATUS[0]}
+fi
+
+if [[ ! -f "$SUMMARY_FILE" ]]; then
+    printError "Godot exited with $status and wrote no summary. See $LOG_FILE."
+    exit 1
+fi
+
+printMessage "Summary: $SUMMARY_FILE"
+exit "$status"
