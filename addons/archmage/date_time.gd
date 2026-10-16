@@ -28,8 +28,8 @@ func is_zero() -> bool:
 
 
 ## Returns the datetime in [param v], a parsed JSON value. [code]null[/code] gives the zero value. For any other value
-## that is not an RFC 3339 string, records the error in [param e] (see [method ParseError.report]) and returns the
-## zero value.
+## that is not an RFC 3339 string, records the error in [param e] (see [method Archmage.ParseError.report]) and
+## returns the zero value.
 static func from_json(v: Variant, e: ParseError = null) -> DateTime:
 	var t := DateTime.new()
 	if v == null:

@@ -20,7 +20,7 @@ func _init(ns: int = 0) -> void:
 
 ## Returns the duration in [param v], a parsed JSON value. [code]null[/code] and an empty array give a zero duration.
 ## For any other value that is not a valid duration, records the error in [param e] (see
-## [method ParseError.report]) and returns a zero duration.
+## [method Archmage.ParseError.report]) and returns a zero duration.
 static func from_json(v: Variant, e: ParseError = null) -> Duration:
 	if v == null:
 		return Duration.new()

@@ -20,6 +20,10 @@ scripts/sync-testdata.sh
 
 # Regenerate tests/enums and tests/conf (run in ../whisper)
 DIAGNOSTIC=0 just sdk-gd
+
+# Generate the overview-gd, sdk-gd, gen-gd and gen-gd-editor pages into ../docs/archmage (doctool XML converted by
+# docs/gdscript-docs.mjs) and stage the docs repo; then build there with pnpm build
+docs/update.sh
 ```
 
 Set `GODOT` to override the Godot executable (default `/Applications/Godot_mono.app/Contents/MacOS/godot`). Pass `TRACE=1` to a script to trace it.
@@ -79,7 +83,7 @@ The template is `archmage/structs/tpls/json-gd.tpl` in `../whisper`. It uses no 
 - A config ID is a plain `int` or `String`. A wrapper object cannot be a `Dictionary` key, because GDScript compares objects by identity.
 - A ref field holds the entry, such as `var weapon: ItemTable.ItemCfg`, and is `null` when the ID is the zero value. The ID is `weapon.id`. This works because loading fails when a non-zero ID has no entry.
 - `atlas_extension.gd` is generated only when it does not exist; users edit it.
-- `l10n.gd` (`class_name L10n`) is generated when a config has an l10n field, as in Go and C#. The user sets the static `Callable` vars `get_i18n` and `get_preferred_language`; `L10n.text(key)` returns the text in the preferred language, or the key when no language has it, and `L10n.get_text(key, lang)` returns `null` then. An empty key gives `""`. When a `Callable` is not set, they call `push_error` and return the key or `null`.
+- `l10n.gd` (`class_name L10n`) is generated when a config has an l10n field, as in Go and C#. The user sets the static `Callable` vars `get_i18n` and `get_preferred_language`; `L10n.text(key)` returns the text in the preferred language, or the key when no language has it, and `L10n.get_text(key, lang)` returns `null` then. An empty key gives `""`. When a `Callable` is not set, they call `push_error` and return the key or `null`. A lambda that is still in either var when the process exits makes Godot 4.6.3 abort, so a test that sets a lambda resets the var to `Callable()`, and the docs tell users to set methods or static functions.
 - Types map as follows: all integers to `int`; float types to `float`; string, path and origin to `String`; enum to `int` annotated with the generated enum type; bitflags to `int`; ref and backref to the entry type; backref-n to `Array[entry type]`; l10n to `String`; rgba to `Color`; duration to `Archmage.Duration` (nanoseconds in an `int`); datetime to `Archmage.DateTime` (unix time and zone offset, written back as `+01:00`); minmax, wtpool and tuple to `Archmage.MinMax`, `Archmage.WeightedPool` and `Archmage.Tuple` with untyped elements.
 - A vector uses `Vector2/3/4` or `Vector2i/3i/4i` when the elements are 32-bit (float32, int32, or `ARCHMAGE_FLOAT_BIT_SIZE`/`ARCHMAGE_INT_BIT_SIZE` of 32), and `Archmage.Vec2/3/4` (with `to_godot()`) otherwise, as `cs-godot-vector` does.
 - `[]T` is `Array[T]` and `map[K]V` is `Dictionary[K, V]`. Godot typed collections cannot nest, so the inner collection is untyped.

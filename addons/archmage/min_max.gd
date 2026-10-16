@@ -5,7 +5,7 @@ const MinMax = preload("min_max.gd")
 const Duration = preload("duration.gd")
 const ParseError = preload("parse_error.gd")
 
-## The lower bound, inclusive: an [int], a [float] or a [Duration], as the element type of the field.
+## The lower bound, inclusive: an [int], a [float] or an [Archmage.Duration], as the element type of the field.
 @warning_ignore("shadowed_global_identifier")
 var min: Variant
 ## The upper bound, inclusive, of the same type as [member min].
@@ -36,8 +36,8 @@ func to_json() -> Dictionary:
 
 ## Returns a random value from [member min] to [member max], both included, drawn uniformly with [param rng], or with
 ## the global random number generator, which [method @GlobalScope.seed] affects, when [param rng] is
-## [code]null[/code]. A [Duration] is drawn in whole milliseconds: the bounds are truncated to milliseconds, and every
-## value returned is a whole number of milliseconds.
+## [code]null[/code]. An [Archmage.Duration] is drawn in whole milliseconds: the bounds are truncated to milliseconds,
+## and every value returned is a whole number of milliseconds.
 @warning_ignore("integer_division")
 func sample(rng: RandomNumberGenerator = null) -> Variant:
 	if min is Duration:

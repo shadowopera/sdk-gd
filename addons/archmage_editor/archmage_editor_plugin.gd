@@ -25,6 +25,9 @@ func _exit_tree() -> void:
 		remove_inspector_plugin(_inspector_plugin)
 		_inspector_plugin = null
 	CfgIdInspectorPlugin.rebuild_inspector()
+	# A lambda left in a static var makes Godot abort when the editor quits.
+	L10n.get_i18n = Callable()
+	L10n.get_preferred_language = Callable()
 
 # The configs are loaded when the Inspector first shows an object, not when the editor starts.
 static func ensure_game_configs_loaded() -> void:
