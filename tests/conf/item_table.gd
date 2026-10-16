@@ -33,14 +33,14 @@ class ItemCfg extends RefCounted:
 
 	var _best_owner_ref: int
 
-	static func from_json(_d: Variant) -> ItemCfg:
+	static func from_json(_d: Variant, _e: Archmage.ParseError) -> ItemCfg:
 		if _d == null:
 			return null
 		var _x := ItemCfg.new()
 		_x.name = J.s(_d.get("name"))
 		_x.rarity = J.i(_d.get("rarity")) as SdkEnum.Rarity
-		_x.price = Price.from_json(_d.get("price"))
-		_x.sell_price = Price.from_json(_d.get("sellPrice"))
+		_x.price = Price.from_json(_d.get("price"), _e)
+		_x.sell_price = Price.from_json(_d.get("sellPrice"), _e)
 		var _tags_json: Variant = _d.get("tags")
 		if _tags_json != null:
 			for _e1: Variant in _tags_json:
@@ -51,7 +51,7 @@ class ItemCfg extends RefCounted:
 		var _enchants_json: Variant = _d.get("enchants")
 		if _enchants_json != null:
 			for _e1: Variant in _enchants_json:
-				_x.enchants.append(Item_EnchantsEntry.from_json(_e1))
+				_x.enchants.append(Item_EnchantsEntry.from_json(_e1, _e))
 		return _x
 
 	func to_json() -> Dictionary:
@@ -90,7 +90,7 @@ class Price extends RefCounted:
 	var gold: int
 	var gem: int
 
-	static func from_json(_d: Variant) -> Price:
+	static func from_json(_d: Variant, _e: Archmage.ParseError) -> Price:
 		if _d == null:
 			return null
 		var _x := Price.new()
@@ -116,7 +116,7 @@ class Item_EnchantsEntry extends RefCounted:
 
 	var _scroll_ref: int
 
-	static func from_json(_d: Variant) -> Item_EnchantsEntry:
+	static func from_json(_d: Variant, _e: Archmage.ParseError) -> Item_EnchantsEntry:
 		if _d == null:
 			return null
 		var _x := Item_EnchantsEntry.new()
@@ -176,13 +176,15 @@ func _iter_next(iter: Array) -> bool:
 func _iter_get(iter: Variant) -> Variant:
 	return iter[0][iter[1]]
 
-func load_json(d: Variant) -> void:
+func load_json(d: Variant) -> String:
 	_unbind_refs()
 	entries.clear()
 	if d == null:
-		return
+		return ""
+	var _e := Archmage.ParseError.new()
 	for _k1: String in d:
-		entries[int(_k1)] = ItemCfg.from_json(d[_k1])
+		entries[int(_k1)] = ItemCfg.from_json(d[_k1], _e)
+	return ""
 
 ## Sets the ID of each config entry from its key.
 func apply_keys() -> void:

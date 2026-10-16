@@ -135,12 +135,13 @@ func try_lookup(id: int) -> ItemCfg:
 	return entries.get(id)
 
 
-func load_json(d: Variant) -> void:
+func load_json(d: Variant) -> String:
 	entries.clear()
 	if d == null:
-		return
+		return ""
 	for k: String in d:
 		entries[int(k)] = ItemCfg.from_json(d[k])
+	return ""
 
 
 ## Sets the ID of each entry from its key.

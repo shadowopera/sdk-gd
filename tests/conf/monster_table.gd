@@ -15,15 +15,15 @@ class MonsterCfg extends RefCounted:
 	var habitat: RegionTable.RegionCfg
 	var resist: Dictionary[SdkEnum.Element, int] = {}
 	var size: Array[float] = []
-	var speed: Variant
-	var aggro: Variant
-	var loot: Variant
+	var speed: Vector2
+	var aggro: Archmage.MinMax
+	var loot: Archmage.WeightedPool
 	var stats: Monster_Stats
 	var phases: Array[Monster_PhasesEntry] = []
 
 	var _habitat_ref: String
 
-	static func from_json(_d: Variant) -> MonsterCfg:
+	static func from_json(_d: Variant, _e: Archmage.ParseError) -> MonsterCfg:
 		if _d == null:
 			return null
 		var _x := MonsterCfg.new()
@@ -37,14 +37,14 @@ class MonsterCfg extends RefCounted:
 		if _size_json != null:
 			for _e1: Variant in _size_json:
 				_x.size.append(J.f(_e1))
-		_x.speed = _d.get("speed")
-		_x.aggro = _d.get("aggro")
-		_x.loot = _d.get("loot")
-		_x.stats = Monster_Stats.from_json(_d.get("stats"))
+		_x.speed = J.v2(_d.get("speed"))
+		_x.aggro = Archmage.MinMax.from_json(_d.get("aggro"), J.f, _e)
+		_x.loot = Archmage.WeightedPool.from_json(_d.get("loot"), J.i, _e, true)
+		_x.stats = Monster_Stats.from_json(_d.get("stats"), _e)
 		var _phases_json: Variant = _d.get("phases")
 		if _phases_json != null:
 			for _e1: Variant in _phases_json:
-				_x.phases.append(Monster_PhasesEntry.from_json(_e1))
+				_x.phases.append(Monster_PhasesEntry.from_json(_e1, _e))
 		return _x
 
 	func to_json() -> Dictionary:
@@ -66,6 +66,12 @@ class MonsterCfg extends RefCounted:
 			habitat = _atlas.region_table.try_lookup(_habitat_ref)
 			if habitat == null:
 				return ".habitat" + J.missing("RegionTable", _habitat_ref)
+		if loot != null:
+			for _j in loot._ref_ids.size():
+				if loot._ref_ids[_j] != 0:
+					loot.items[_j] = _atlas.item_table.try_lookup(loot._ref_ids[_j])
+					if loot.items[_j] == null:
+						return ".loot.items[%d]%s" % [_j, J.missing("ItemTable", loot._ref_ids[_j])]
 		for _i1 in phases.size():
 			if phases[_i1] != null:
 				var _err: String = phases[_i1]._bind_refs(_atlas)
@@ -75,6 +81,8 @@ class MonsterCfg extends RefCounted:
 
 	func _unbind_refs() -> void:
 		habitat = null
+		if loot != null:
+			loot._unbind_refs()
 		for _e1 in phases:
 			if _e1 != null:
 				_e1._unbind_refs()
@@ -84,7 +92,7 @@ class Monster_Stats extends RefCounted:
 	var hp: int
 	var atk: float
 
-	static func from_json(_d: Variant) -> Monster_Stats:
+	static func from_json(_d: Variant, _e: Archmage.ParseError) -> Monster_Stats:
 		if _d == null:
 			return null
 		var _x := Monster_Stats.new()
@@ -107,7 +115,7 @@ class Monster_PhasesEntry extends RefCounted:
 	var _summon_ref: int
 	var _cast_ref: String
 
-	static func from_json(_d: Variant) -> Monster_PhasesEntry:
+	static func from_json(_d: Variant, _e: Archmage.ParseError) -> Monster_PhasesEntry:
 		if _d == null:
 			return null
 		var _x := Monster_PhasesEntry.new()
@@ -172,13 +180,15 @@ func _iter_next(iter: Array) -> bool:
 func _iter_get(iter: Variant) -> Variant:
 	return iter[0][iter[1]]
 
-func load_json(d: Variant) -> void:
+func load_json(d: Variant) -> String:
 	_unbind_refs()
 	entries.clear()
 	if d == null:
-		return
+		return ""
+	var _e := Archmage.ParseError.new()
 	for _k1: String in d:
-		entries[int(_k1)] = MonsterCfg.from_json(d[_k1])
+		entries[int(_k1)] = MonsterCfg.from_json(d[_k1], _e)
+	return ""
 
 ## Sets the ID of each config entry from its key.
 func apply_keys() -> void:

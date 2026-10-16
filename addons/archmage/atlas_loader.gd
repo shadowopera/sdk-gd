@@ -18,7 +18,8 @@
 ## [br]- [constant ERR_INVALID_PARAMETER]: an invalid option, such as an unknown key in the whitelist, an empty
 ## variant, or an override root that is not a directory.
 ## [br]- The code of the file system, such as [constant ERR_FILE_NOT_FOUND], when a file cannot be read.
-## [br]- [constant ERR_PARSE_ERROR]: a file is not valid JSON, or atlas.json does not have its expected shape.
+## [br]- [constant ERR_PARSE_ERROR]: a file is not valid JSON, atlas.json does not have its expected shape, or the
+## [code]load_json[/code] of an item returned an error message, such as for an invalid duration.
 ## [br]- [constant ERR_DOES_NOT_EXIST]: atlas.json has no file for an item that is loaded.
 ## [br]- [constant ERR_INVALID_DATA]: a reference has no entry ([method Archmage.Atlas.bind_refs] failed), or an
 ## item has an unknown mapping.
@@ -215,7 +216,9 @@ func _load_item(key: String, item: AtlasItem, atlas_json: AtlasJson, atlas_file:
 			return _fail(ERR_PARSE_ERROR, "failed to apply override \"%s\" | %s" % [override_paths[i], _json_error(json)])
 		merged = merge_json(merged, json.data)
 
-	item.cfg.load_json(merged)
+	var msg: String = item.cfg.load_json(merged)
+	if msg != "":
+		return _fail(ERR_PARSE_ERROR, key + msg)
 	if item.cfg.has_method(&"apply_keys"):
 		item.cfg.apply_keys()
 

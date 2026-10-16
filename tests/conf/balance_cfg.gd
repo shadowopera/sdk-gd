@@ -15,23 +15,27 @@ var gold_bonus: float
 ## Enemy level offset
 var enemy_level: int
 ## Spawn interval
-var spawn_interval: Variant
+var spawn_interval: Archmage.Duration
 ## XP curve
 var xp_curve: Array[int] = []
 
-func load_json(_d: Variant) -> void:
+func load_json(_d: Variant) -> String:
 	if _d == null:
 		_d = {}
+	var _e := Archmage.ParseError.new()
 	hp_scale = J.f(_d.get("hpScale"))
 	dmg_scale = J.f(_d.get("dmgScale"))
 	gold_bonus = J.f(_d.get("goldBonus"))
 	enemy_level = J.i(_d.get("enemyLevel"))
-	spawn_interval = _d.get("spawnInterval")
+	spawn_interval = Archmage.Duration.from_json(_d.get("spawnInterval"), _e)
+	if _e.failed:
+		return _e.message_at(".spawnInterval")
 	xp_curve.clear()
 	var _xp_curve_json: Variant = _d.get("xpCurve")
 	if _xp_curve_json != null:
 		for _e1: Variant in _xp_curve_json:
 			xp_curve.append(J.i(_e1))
+	return ""
 
 func to_json() -> Dictionary:
 	return {

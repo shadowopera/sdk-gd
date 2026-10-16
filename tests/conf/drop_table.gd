@@ -14,35 +14,39 @@ class DropCfg extends RefCounted:
 	## Drop name
 	var name: String
 	## Gold
-	var gold: Variant
+	var gold: Archmage.MinMax
 	## Bonus rate
-	var bonus_rate: Variant
+	var bonus_rate: Archmage.MinMax
 	## Despawn time
-	var despawn: Variant
+	var despawn: Archmage.MinMax
 	## Items
-	var items: Variant
+	var items: Archmage.WeightedPool
 	## Coins
-	var coins: Variant
+	var coins: Archmage.WeightedPool
 	## Titles
-	var titles: Variant
+	var titles: Archmage.WeightedPool
 	## Rarity
-	var rarity: Variant
+	var rarity: Archmage.WeightedPool
 	## Buff time
-	var buff_time: Variant
+	var buff_time: Archmage.WeightedPool
 
-	static func from_json(_d: Variant) -> DropCfg:
+	static func from_json(_d: Variant, _e: Archmage.ParseError) -> DropCfg:
 		if _d == null:
 			return null
 		var _x := DropCfg.new()
 		_x.name = J.s(_d.get("name"))
-		_x.gold = _d.get("gold")
-		_x.bonus_rate = _d.get("bonusRate")
-		_x.despawn = _d.get("despawn")
-		_x.items = _d.get("items")
-		_x.coins = _d.get("coins")
-		_x.titles = _d.get("titles")
-		_x.rarity = _d.get("rarity")
-		_x.buff_time = _d.get("buffTime")
+		_x.gold = Archmage.MinMax.from_json(_d.get("gold"), J.i, _e)
+		_x.bonus_rate = Archmage.MinMax.from_json(_d.get("bonusRate"), J.f, _e)
+		_x.despawn = Archmage.MinMax.from_json(_d.get("despawn"), Archmage.Duration.from_json, _e)
+		if _e.failed:
+			return _e.at(".despawn")
+		_x.items = Archmage.WeightedPool.from_json(_d.get("items"), J.i, _e, true)
+		_x.coins = Archmage.WeightedPool.from_json(_d.get("coins"), J.i, _e)
+		_x.titles = Archmage.WeightedPool.from_json(_d.get("titles"), J.s, _e)
+		_x.rarity = Archmage.WeightedPool.from_json(_d.get("rarity"), J.i, _e)
+		_x.buff_time = Archmage.WeightedPool.from_json(_d.get("buffTime"), Archmage.Duration.from_json, _e)
+		if _e.failed:
+			return _e.at(".buffTime")
 		return _x
 
 	func to_json() -> Dictionary:
@@ -58,6 +62,19 @@ class DropCfg extends RefCounted:
 			"rarity": rarity,
 			"buffTime": buff_time,
 		}
+
+	func _bind_refs(_atlas: ConfigAtlas) -> String:
+		if items != null:
+			for _j in items._ref_ids.size():
+				if items._ref_ids[_j] != 0:
+					items.items[_j] = _atlas.item_table.try_lookup(items._ref_ids[_j])
+					if items.items[_j] == null:
+						return ".items.items[%d]%s" % [_j, J.missing("ItemTable", items._ref_ids[_j])]
+		return ""
+
+	func _unbind_refs() -> void:
+		if items != null:
+			items._unbind_refs()
 
 ## Returns the config entry of [param id]. When there is none, reports an error and returns [code]null[/code].
 ## Returns [code]null[/code] without an error for the zero ID.
@@ -93,12 +110,20 @@ func _iter_next(iter: Array) -> bool:
 func _iter_get(iter: Variant) -> Variant:
 	return iter[0][iter[1]]
 
-func load_json(d: Variant) -> void:
+func load_json(d: Variant) -> String:
+	_unbind_refs()
 	entries.clear()
 	if d == null:
-		return
+		return ""
+	var _e := Archmage.ParseError.new()
 	for _k1: String in d:
-		entries[int(_k1)] = DropCfg.from_json(d[_k1])
+		entries[int(_k1)] = DropCfg.from_json(d[_k1], _e)
+		if _e.failed:
+			_e.at("[%s]" % _k1)
+			break
+	if _e.failed:
+		return _e.message_at("")
+	return ""
 
 ## Sets the ID of each config entry from its key.
 func apply_keys() -> void:
@@ -108,3 +133,16 @@ func apply_keys() -> void:
 
 func to_json() -> Dictionary:
 	return entries
+
+func _bind_refs(_atlas: ConfigAtlas) -> String:
+	for _k1 in entries:
+		if entries[_k1] != null:
+			var _err: String = entries[_k1]._bind_refs(_atlas)
+			if _err != "":
+				return "[%s]%s" % [_k1, _err]
+	return ""
+
+func _unbind_refs() -> void:
+	for _e1 in entries.values():
+		if _e1 != null:
+			_e1._unbind_refs()

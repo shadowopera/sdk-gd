@@ -66,12 +66,13 @@ func try_lookup(id: String) -> RaceCfg:
 	return entries.get(id)
 
 
-func load_json(d: Variant) -> void:
+func load_json(d: Variant) -> String:
 	entries.clear()
 	if d == null:
-		return
+		return ""
 	for k: String in d:
 		entries[k] = RaceCfg.from_json(d[k])
+	return ""
 
 
 ## Sets the ID of each entry from its key.

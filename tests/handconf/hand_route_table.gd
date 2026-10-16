@@ -9,13 +9,14 @@ var entries: Dictionary[String, Dictionary] = {}
 var _entries_ref: Dictionary[String, Dictionary] = {}
 
 
-func load_json(d: Variant) -> void:
+func load_json(d: Variant) -> String:
 	entries.clear()
 	_entries_ref.clear()
 	if d == null:
-		return
+		return ""
 	for k: String in d:
 		_entries_ref[k] = {} if d[k] == null else d[k]
+	return ""
 
 
 func to_json() -> Dictionary:

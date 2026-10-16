@@ -95,7 +95,7 @@ func test_canonicalize_objects() -> void:
 
 func test_canonicalize_unsupported() -> void:
 	capture_errors()
-	var got := Archmage.canonicalize([Vector2(1, 2), RefCounted.new(), INF])
+	var got := Archmage.canonicalize([Rect2(1, 2, 3, 4), RefCounted.new(), INF])
 	var errors := take_errors()
 	check_eq(got, "[\n\tnull,\n\tnull,\n\tnull\n]\n")
 	check_eq(errors.size(), 3, "errors: %s" % [errors])

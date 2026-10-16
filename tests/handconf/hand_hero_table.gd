@@ -168,12 +168,13 @@ func size() -> int:
 	return entries.size()
 
 
-func load_json(d: Variant) -> void:
+func load_json(d: Variant) -> String:
 	entries.clear()
 	if d == null:
-		return
+		return ""
 	for k: String in d:
 		entries[int(k)] = HeroCfg.from_json(d[k])
+	return ""
 
 
 ## Sets the ID of each entry from its key.

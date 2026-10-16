@@ -49,11 +49,11 @@ class HeroCfg extends RefCounted:
 	var stats: Stats
 	var growth: Stats
 	## Birthday
-	var birthday: Variant
+	var birthday: Archmage.DateTime
 	## Respawn time
-	var respawn: Variant
+	var respawn: Archmage.Duration
 	## Theme color
-	var theme_color: Variant
+	var theme_color: Color
 	## Portrait
 	var portrait: String
 	## Playable
@@ -65,16 +65,16 @@ class HeroCfg extends RefCounted:
 	## Race
 	var race: RaceTable.RaceCfg
 	## Spawn position
-	var spawn_pos: Variant
+	var spawn_pos: Vector3i
 	## Facing
-	var facing: Variant
+	var facing: Vector2
 	## Talents
 	var talents: Array[Hero_TalentsEntry] = []
 
 	var _weapon_ref: int
 	var _race_ref: String
 
-	static func from_json(_d: Variant) -> HeroCfg:
+	static func from_json(_d: Variant, _e: Archmage.ParseError) -> HeroCfg:
 		if _d == null:
 			return null
 		var _x := HeroCfg.new()
@@ -95,22 +95,28 @@ class HeroCfg extends RefCounted:
 		_x.crit_rate = J.f(_d.get("critRate"))
 		_x.dodge = J.f(_d.get("dodge"))
 		_x.move_speed = J.f(_d.get("moveSpeed"))
-		_x.stats = Stats.from_json(_d.get("stats"))
-		_x.growth = Stats.from_json(_d.get("growth"))
-		_x.birthday = _d.get("birthday")
-		_x.respawn = _d.get("respawn")
-		_x.theme_color = _d.get("themeColor")
+		_x.stats = Stats.from_json(_d.get("stats"), _e)
+		_x.growth = Stats.from_json(_d.get("growth"), _e)
+		_x.birthday = Archmage.DateTime.from_json(_d.get("birthday"), _e)
+		if _e.failed:
+			return _e.at(".birthday")
+		_x.respawn = Archmage.Duration.from_json(_d.get("respawn"), _e)
+		if _e.failed:
+			return _e.at(".respawn")
+		_x.theme_color = Archmage.Rgba.from_json(_d.get("themeColor"), _e)
+		if _e.failed:
+			return _e.at(".themeColor")
 		_x.portrait = J.s(_d.get("portrait"))
 		_x.playable = J.b(_d.get("playable"))
 		_x._weapon_ref = J.i(_d.get("weapon"))
 		_x.weapon_id = J.i(_d.get("weaponId"))
 		_x._race_ref = J.s(_d.get("race"))
-		_x.spawn_pos = _d.get("spawnPos")
-		_x.facing = _d.get("facing")
+		_x.spawn_pos = J.v3i(_d.get("spawnPos"))
+		_x.facing = J.v2(_d.get("facing"))
 		var _talents_json: Variant = _d.get("talents")
 		if _talents_json != null:
 			for _e1: Variant in _talents_json:
-				_x.talents.append(Hero_TalentsEntry.from_json(_e1))
+				_x.talents.append(Hero_TalentsEntry.from_json(_e1, _e))
 		return _x
 
 	func to_json() -> Dictionary:
@@ -177,7 +183,7 @@ class Stats extends RefCounted:
 	## Base attack
 	var atk: float
 
-	static func from_json(_d: Variant) -> Stats:
+	static func from_json(_d: Variant, _e: Archmage.ParseError) -> Stats:
 		if _d == null:
 			return null
 		var _x := Stats.new()
@@ -200,7 +206,7 @@ class Hero_TalentsEntry extends RefCounted:
 
 	var _skill_ref: String
 
-	static func from_json(_d: Variant) -> Hero_TalentsEntry:
+	static func from_json(_d: Variant, _e: Archmage.ParseError) -> Hero_TalentsEntry:
 		if _d == null:
 			return null
 		var _x := Hero_TalentsEntry.new()
@@ -258,13 +264,20 @@ func _iter_next(iter: Array) -> bool:
 func _iter_get(iter: Variant) -> Variant:
 	return iter[0][iter[1]]
 
-func load_json(d: Variant) -> void:
+func load_json(d: Variant) -> String:
 	_unbind_refs()
 	entries.clear()
 	if d == null:
-		return
+		return ""
+	var _e := Archmage.ParseError.new()
 	for _k1: String in d:
-		entries[int(_k1)] = HeroCfg.from_json(d[_k1])
+		entries[int(_k1)] = HeroCfg.from_json(d[_k1], _e)
+		if _e.failed:
+			_e.at("[%s]" % _k1)
+			break
+	if _e.failed:
+		return _e.message_at("")
+	return ""
 
 ## Sets the ID of each config entry from its key.
 func apply_keys() -> void:

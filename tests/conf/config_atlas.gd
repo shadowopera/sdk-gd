@@ -52,6 +52,9 @@ func bind_refs() -> String:
 	err = chapter_array._bind_refs(self)
 	if err != "":
 		return "chapter" + err
+	err = drop_table._bind_refs(self)
+	if err != "":
+		return "drop" + err
 	err = game_cfg._bind_refs(self)
 	if err != "":
 		return "game" + err
@@ -80,6 +83,7 @@ func bind_refs() -> String:
 
 func unbind_refs() -> void:
 	chapter_array._unbind_refs()
+	drop_table._unbind_refs()
 	game_cfg._unbind_refs()
 	hero_table._unbind_refs()
 	item_table._unbind_refs()

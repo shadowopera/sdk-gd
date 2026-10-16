@@ -18,10 +18,12 @@ const MAPPING_MANY := "many"
 const DEFAULT_VARIANT := "/"
 
 ## The object that receives the data. It has these methods:
-## [br]- [code]load_json(data: Variant) -> void[/code] fills the object. The loader calls it once, with the parsed
+## [br]- [code]load_json(data: Variant) -> String[/code] fills the object. The loader calls it once, with the parsed
 ## JSON of all files and overrides of the item merged into one value (see [method Archmage.AtlasLoader.merge_json]).
 ## Godot parses every number as [float], so convert integers with [code]int()[/code]. A [code]null[/code] or
-## missing value gives the default of the field.
+## missing value gives the default of the field. It returns [code]""[/code], or, for the first invalid value, a
+## message that starts with the path of the value in the item, such as [code][3].respawn: invalid duration "abc"[/code];
+## the loader then returns [constant ERR_PARSE_ERROR]. [code]Archmage.ParseError[/code] collects such a message.
 ## [br]- [code]apply_keys() -> void[/code] sets the ID of each entry from its key. Only regular tables have it; the
 ## loader calls it after [code]load_json[/code] when the object has it.
 ## [br]- [code]to_json() -> Variant[/code] returns the content as JSON values for [method Archmage.canonicalize]

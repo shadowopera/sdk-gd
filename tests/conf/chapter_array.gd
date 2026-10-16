@@ -15,13 +15,13 @@ class ChapterCfg extends RefCounted:
 	var hero: HeroTable.HeroCfg
 	var monsters: Array[MonsterTable.MonsterCfg] = []
 	var recommended: Array[SdkEnum.HeroClass] = []
-	var time_limit: Variant
+	var time_limit: Archmage.Duration
 	var waves: Array[int] = []
 
 	var _hero_ref: int
 	var _monsters_ref: Array[int] = []
 
-	static func from_json(_d: Variant) -> ChapterCfg:
+	static func from_json(_d: Variant, _e: Archmage.ParseError) -> ChapterCfg:
 		if _d == null:
 			return null
 		var _x := ChapterCfg.new()
@@ -36,7 +36,9 @@ class ChapterCfg extends RefCounted:
 		if _recommended_json != null:
 			for _e1: Variant in _recommended_json:
 				_x.recommended.append(J.i(_e1) as SdkEnum.HeroClass)
-		_x.time_limit = _d.get("timeLimit")
+		_x.time_limit = Archmage.Duration.from_json(_d.get("timeLimit"), _e)
+		if _e.failed:
+			return _e.at(".timeLimit")
 		var _waves_json: Variant = _d.get("waves")
 		if _waves_json != null:
 			for _e1: Variant in _waves_json:
@@ -74,13 +76,20 @@ class ChapterCfg extends RefCounted:
 		hero = null
 		monsters.clear()
 
-func load_json(d: Variant) -> void:
+func load_json(d: Variant) -> String:
 	_unbind_refs()
 	entries.clear()
 	if d == null:
-		return
+		return ""
+	var _e := Archmage.ParseError.new()
 	for _e1: Variant in d:
-		entries.append(ChapterCfg.from_json(_e1))
+		entries.append(ChapterCfg.from_json(_e1, _e))
+		if _e.failed:
+			_e.at("[%d]" % (entries.size() - 1))
+			break
+	if _e.failed:
+		return _e.message_at("")
+	return ""
 
 func to_json() -> Array:
 	return entries

@@ -10,19 +10,6 @@ const GOLDEN_DIR := "res://tests/golden"
 ## The golden files of the Go SDK, relative to the project directory. Only the project directory mode can read them.
 const GO_GOLDEN_DIR := "../sdk-go/internal/golden"
 
-## The fields whose types json-gd does not convert yet, per atlas item. Such a field holds the parsed JSON value, so
-## the comparison with the Go golden files skips it. In a path, [code]*[/code] matches every key or index.
-const UNCONVERTED_FIELDS := {
-	"balance": ["spawnInterval"],
-	"chapter": ["*.timeLimit"],
-	"drop": ["*.gold", "*.bonusRate", "*.despawn", "*.items", "*.coins", "*.titles", "*.rarity", "*.buffTime"],
-	"game": ["tickRate", "bgColor", "launchDate", "dailyResets", "classColors", "motd", "bossSpawn", "cameraOffset",
-			"gridSize", "tint", "worldBounds"],
-	"hero": ["*.birthday", "*.respawn", "*.themeColor", "*.spawnPos", "*.facing"],
-	"monster": ["*.speed", "*.aggro", "*.loot"],
-	"skill": ["*.cooldown", "*.damage", "*.buffs.*.time"],
-}
-
 var logger := ScavengerLogger.new()
 var loader := Archmage.AtlasLoader.new()
 
@@ -76,8 +63,8 @@ func check_golden(atlas: ConfigAtlas, golden: String) -> void:
 	check_go_golden(golden)
 
 
-## Compares the values in [code]<GOLDEN_DIR>/<golden>[/code] with the Go golden files of the same case, except
-## [constant UNCONVERTED_FIELDS]. Does nothing when the Go golden files cannot be read, as in an exported program.
+## Compares the values in [code]<GOLDEN_DIR>/<golden>[/code] with the Go golden files of the same case. Does nothing
+## when the Go golden files cannot be read, as in an exported program.
 func check_go_golden(golden: String) -> void:
 	var go_dir := ProjectSettings.globalize_path("res://").path_join(GO_GOLDEN_DIR).path_join(golden).simplify_path()
 	if not DirAccess.dir_exists_absolute(go_dir):
@@ -94,35 +81,8 @@ func check_go_golden(golden: String) -> void:
 			continue
 		var got: Variant = JSON.parse_string(FileAccess.get_file_as_string(dir.path_join(f)))
 		var want: Variant = JSON.parse_string(FileAccess.get_file_as_string(go_dir.path_join(f)))
-		for pattern: String in UNCONVERTED_FIELDS.get(f.get_basename(), []):
-			var keys := pattern.split(".")
-			got = without(got, keys)
-			want = without(want, keys)
 		var diff := json_diff(got, want, "%s/%s" % [golden, f])
 		check(diff == "", "differs from the Go golden file: " + diff)
-
-
-## Returns [param value] without the values at the path [param keys].
-func without(value: Variant, keys: PackedStringArray) -> Variant:
-	if keys.is_empty() or not (value is Dictionary or value is Array):
-		return value
-	var rest := keys.slice(1)
-	if value is Dictionary:
-		var d: Dictionary = value.duplicate()
-		for k: String in d.keys():
-			if keys[0] == "*":
-				d[k] = without(d[k], rest)
-			elif k == keys[0]:
-				if rest.is_empty():
-					d.erase(k)
-				else:
-					d[k] = without(d[k], rest)
-		return d
-	var a: Array = value.duplicate()
-	if keys[0] == "*":
-		for i in a.size():
-			a[i] = without(a[i], rest)
-	return a
 
 
 ## Returns where [param got] and [param want] first differ, or an empty string. A typed array of the generated code
@@ -174,7 +134,12 @@ func test_basic() -> void:
 	check_eq(arthur.class_, SdkEnum.HeroClass.WARRIOR, "hero 1 class")
 	check_eq(arthur.gold, 999999999999999, "hero 1 gold")
 	check_eq(arthur.stats.atk, 88.5, "hero 1 stats.atk")
-	check_eq(arthur.respawn, [0.0, 216000.0], "an unconverted field holds the parsed JSON value")
+	check_eq(arthur.respawn.nanoseconds, 216000 * 1_000_000_000, "hero 1 respawn")
+	check_eq(arthur.birthday.to_json(), "1990-05-20T08:30:00+01:00", "hero 1 birthday")
+	check(atlas.hero_table.lookup(4).birthday.is_zero(), "hero 4 has no birthday")
+	check_eq(arthur.theme_color, Color8(0xFF, 0xD7, 0x00), "hero 1 theme_color")
+	check_eq(arthur.spawn_pos, Vector3i(10, 0, -5), "hero 1 spawn_pos")
+	check_eq(atlas.hero_table.lookup(2).facing, Vector2(-0.5, 0.5), "hero 2 facing")
 	check(arthur.weapon == atlas.item_table.lookup(101), "hero 1 weapon is item 101")
 	check(arthur.race == atlas.race_table.lookup("Human"), "hero 1 race is Human")
 	check(arthur.talents[0].skill == atlas.skill_table.lookup("slash"), "hero 1 talent 0 is slash")
@@ -187,6 +152,21 @@ func test_basic() -> void:
 	check(atlas.game_cfg.start_hero == arthur, "game start_hero")
 	check(atlas.game_cfg.level_rewards[10] == atlas.item_table.lookup(103), "game level_rewards")
 	check_eq(atlas.game_cfg.allowed_classes, [SdkEnum.HeroClass.WARRIOR, SdkEnum.HeroClass.MAGE, SdkEnum.HeroClass.RANGER] as Array[SdkEnum.HeroClass], "game allowed_classes")
+	check_eq(atlas.game_cfg.daily_resets[1].nanoseconds, 57600 * 1_000_000_000, "game daily_resets")
+	check_eq(atlas.game_cfg.class_colors[SdkEnum.HeroClass.MAGE], Color8(0, 0, 0xFF), "game class_colors")
+	check_eq(atlas.game_cfg.world_bounds, Vector4i(-100, -100, 100, 100), "game world_bounds")
+	check_eq(atlas.game_cfg.motd.item0, "Welcome to Avalon", "game motd")
+	var boss := atlas.game_cfg.boss_spawn
+	check(boss.item0 == atlas.hero_table.lookup(2), "game boss_spawn.item0 is hero 2")
+	check_eq([boss.item1, boss.item2.nanoseconds, boss.item3, boss.item4, boss.item5, boss.item6],
+			[SdkEnum.HeroClass.MAGE, 90 * 1_000_000_000, -3, 1.5, true, " boss "], "game boss_spawn")
+	var drop := atlas.drop_table.lookup(1)
+	check_eq([drop.gold.min, drop.gold.max], [1, 5], "drop 1 gold")
+	check_eq(drop.despawn.max.nanoseconds, 120 * 1_000_000_000, "drop 1 despawn")
+	check(drop.items.items[1] == atlas.item_table.lookup(104), "drop 1 items reference item 104")
+	check_eq(drop.titles.items, ["Lucky", "Blessed"], "drop 1 titles")
+	check(atlas.drop_table.lookup(2).titles == null, "drop 2 has no titles")
+	check(atlas.monster_table.lookup(1003).loot.sample_with(0.0) == atlas.item_table.lookup(101), "monster loot")
 	check(atlas.monster_table.size() > 0, "monsters are loaded")
 	for m: MonsterTable.MonsterCfg in atlas.monster_table:
 		for p in m.phases:
@@ -244,19 +224,46 @@ func test_lookup() -> void:
 
 
 func test_bind_refs_failure() -> void:
-	var cases := {
-		"hero.json": ["{\"3\": {\"weapon\": 999}}", "hero[3].weapon: ItemTable: config entry not found for ID 999"],
-		"chapter.json": ["[{\"monsters\": [0, 77]}]", "chapter[0].monsters[1]: MonsterTable: config entry not found for ID 77"],
-		"game.json": ["{\"levelRewards\": {\"5\": 9}}", "game.levelRewards[5]: ItemTable: config entry not found for ID 9"],
-		"route.json": ["{\"Camelot\": {\"north\": [[\"Camelot\", \"Nowhere\"]]}}",
+	# [file, override, error message]
+	var cases := [
+		["hero.json", "{\"3\": {\"weapon\": 999}}", "hero[3].weapon: ItemTable: config entry not found for ID 999"],
+		["chapter.json", "[{\"monsters\": [0, 77]}]", "chapter[0].monsters[1]: MonsterTable: config entry not found for ID 77"],
+		["game.json", "{\"levelRewards\": {\"5\": 9}}", "game.levelRewards[5]: ItemTable: config entry not found for ID 9"],
+		["route.json", "{\"Camelot\": {\"north\": [[\"Camelot\", \"Nowhere\"]]}}",
 				"route[Camelot][north][0][1]: RegionTable: config entry not found for ID Nowhere"],
-		"vtbl/skill-magic.json": ["{\"heal\": {\"buffs\": {\"regen\": {\"source\": 404}}}}",
+		["vtbl/skill-magic.json", "{\"heal\": {\"buffs\": {\"regen\": {\"source\": 404}}}}",
 				"skill[heal].buffs[regen].source: ItemTable: config entry not found for ID 404"],
-	}
-	for file: String in cases:
-		var fs := MemoryFS.new({file: cases[file][0]})
+		["drop.json", "{\"2\": {\"items\": {\"items\": [101, 0, 7], \"weights\": [1, 1, 1]}}}",
+				"drop[2].items.items[2]: ItemTable: config entry not found for ID 7"],
+		["game.json", "{\"bossSpawn\": {\"item0\": 99}}", "game.bossSpawn.item0: HeroTable: config entry not found for ID 99"],
+		["monster.json", "{\"1003\": {\"loot\": {\"items\": [8]}}}",
+				"monster[1003].loot.items[0]: ItemTable: config entry not found for ID 8"],
+	]
+	for c: Array in cases:
+		var fs := MemoryFS.new({c[0]: c[1]})
 		var msg := load_fail(opts().with_blacklist(["balance"]).with_override_fs(fs), ERR_INVALID_DATA)
-		check_eq(msg, "<archmage> failed to bind refs | " + cases[file][1], file)
+		check_eq(msg, "<archmage> failed to bind refs | " + c[2], c[0])
+
+
+func test_parse_failure() -> void:
+	# [file, override, error message]
+	var cases := [
+		["hero.json", "{\"3\": {\"respawn\": \"abc\"}}", "hero[3].respawn: invalid duration \"abc\""],
+		["hero.json", "{\"1\": {\"birthday\": \"1990-05-20\"}}", "hero[1].birthday: invalid RFC 3339 time \"1990-05-20\""],
+		["hero.json", "{\"2\": {\"themeColor\": \"#FFF\"}}", "hero[2].themeColor: invalid RGBA string \"#FFF\""],
+		["game.json", "{\"tickRate\": [5, 1]}", "game.tickRate: invalid duration shards [5,1]"],
+		["game.json", "{\"dailyResets\": [[0, 1], [0, 2, 3]]}", "game.dailyResets[1]: invalid duration shards [0,2,3]"],
+		["game.json", "{\"classColors\": {\"2\": 255}}", "game.classColors[2]: invalid RGBA value 255"],
+		["game.json", "{\"bossSpawn\": {\"item2\": [1]}}", "game.bossSpawn.item2: invalid duration shards [1]"],
+		["drop.json", "{\"2\": {\"despawn\": {\"min\": \"1s\"}}}", "drop[2].despawn.min: invalid duration \"1s\""],
+		["drop.json", "{\"1\": {\"buffTime\": {\"items\": [[0, 1], [7, 7]]}}}",
+				"drop[1].buffTime.items[1]: invalid duration shards [7,7]"],
+		["chapter.json", "[{}, {\"timeLimit\": true}]", "chapter[1].timeLimit: invalid duration true"],
+	]
+	for c: Array in cases:
+		var fs := MemoryFS.new({c[0]: c[1]})
+		var msg := load_fail(opts().with_blacklist(["balance"]).with_override_fs(fs), ERR_PARSE_ERROR)
+		check(msg.ends_with(" | " + c[2]), "%s: %s" % [c[0], msg])
 
 
 ## Adds the instance ID of each object in [param value] to [param ids], following [code]to_json()[/code], which
@@ -294,7 +301,13 @@ func test_drop_atlas_keeps_held_entry() -> void:
 	var atlas := load_ok(opts().with_blacklist(["balance"]))
 	var arthur := atlas.hero_table.lookup(1)
 	var weapon_id := arthur.weapon.get_instance_id()
+	var drop := atlas.drop_table.lookup(1)
+	var boss_spawn := atlas.game_cfg.boss_spawn
 	atlas = null
+	check_eq(drop.items.items, [null, null], "the items of drop 1 are null")
+	check_eq(drop.to_json()["items"].to_json()["items"], [103, 104], "to_json keeps the config IDs of a wtpool")
+	check(boss_spawn.item0 == null, "boss_spawn.item0 is null")
+	check_eq(boss_spawn.to_json()["item0"], 2, "to_json keeps the config ID in a tuple")
 	check_eq(arthur.title, "  the Once and Future King  ", "hero 1 title")
 	check(arthur.weapon == null, "hero 1 weapon is null")
 	check(arthur.talents[0].skill == null, "hero 1 talent 0 skill is null")

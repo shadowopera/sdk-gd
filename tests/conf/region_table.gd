@@ -23,7 +23,7 @@ class RegionCfg extends RefCounted:
 	var _neighbors_ref: Array[String] = []
 	var _monsters_ref: Array[int] = []
 
-	static func from_json(_d: Variant) -> RegionCfg:
+	static func from_json(_d: Variant, _e: Archmage.ParseError) -> RegionCfg:
 		if _d == null:
 			return null
 		var _x := RegionCfg.new()
@@ -107,13 +107,15 @@ func _iter_next(iter: Array) -> bool:
 func _iter_get(iter: Variant) -> Variant:
 	return iter[0][iter[1]]
 
-func load_json(d: Variant) -> void:
+func load_json(d: Variant) -> String:
 	_unbind_refs()
 	entries.clear()
 	if d == null:
-		return
+		return ""
+	var _e := Archmage.ParseError.new()
 	for _k1: String in d:
-		entries[_k1] = RegionCfg.from_json(d[_k1])
+		entries[_k1] = RegionCfg.from_json(d[_k1], _e)
+	return ""
 
 ## Sets the ID of each config entry from its key.
 func apply_keys() -> void:

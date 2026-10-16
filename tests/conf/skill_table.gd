@@ -14,7 +14,7 @@ class SkillCfg extends RefCounted:
 	## Skill name
 	var name: String
 	## Cooldown
-	var cooldown: Variant
+	var cooldown: Archmage.Duration
 	## Mana cost
 	var mana: int
 	## School
@@ -23,25 +23,32 @@ class SkillCfg extends RefCounted:
 	## Source
 	var src: String
 	## Damage
-	var damage: Variant
+	var damage: Archmage.MinMax
 	## Buffs
 	var buffs: Dictionary[String, Skill_BuffsEntry] = {}
 	var radius: float
 
-	static func from_json(_d: Variant) -> SkillCfg:
+	static func from_json(_d: Variant, _e: Archmage.ParseError) -> SkillCfg:
 		if _d == null:
 			return null
 		var _x := SkillCfg.new()
 		_x.name = J.s(_d.get("name"))
-		_x.cooldown = _d.get("cooldown")
+		_x.cooldown = Archmage.Duration.from_json(_d.get("cooldown"), _e)
+		if _e.failed:
+			return _e.at(".cooldown")
 		_x.mana = J.i(_d.get("mana"))
 		_x.school = J.i(_d.get("school")) as SdkEnum.Element
 		_x.src = J.s(_d.get("src"))
-		_x.damage = _d.get("damage")
+		_x.damage = Archmage.MinMax.from_json(_d.get("damage"), J.i, _e)
 		var _buffs_json: Variant = _d.get("buffs")
 		if _buffs_json != null:
 			for _k1: String in _buffs_json:
-				_x.buffs[_k1] = Skill_BuffsEntry.from_json(_buffs_json[_k1])
+				_x.buffs[_k1] = Skill_BuffsEntry.from_json(_buffs_json[_k1], _e)
+				if _e.failed:
+					_e.at("[%s]" % _k1)
+					break
+		if _e.failed:
+			return _e.at(".buffs")
 		_x.radius = J.f(_d.get("radius"))
 		return _x
 
@@ -76,18 +83,20 @@ class Skill_BuffsEntry extends RefCounted:
 	## Stacks
 	var stacks: int
 	## Buff duration
-	var time: Variant
+	var time: Archmage.Duration
 	## Granted by
 	var source: ItemTable.ItemCfg
 
 	var _source_ref: int
 
-	static func from_json(_d: Variant) -> Skill_BuffsEntry:
+	static func from_json(_d: Variant, _e: Archmage.ParseError) -> Skill_BuffsEntry:
 		if _d == null:
 			return null
 		var _x := Skill_BuffsEntry.new()
 		_x.stacks = J.i(_d.get("stacks"))
-		_x.time = _d.get("time")
+		_x.time = Archmage.Duration.from_json(_d.get("time"), _e)
+		if _e.failed:
+			return _e.at(".time")
 		_x._source_ref = J.i(_d.get("source"))
 		return _x
 
@@ -142,13 +151,20 @@ func _iter_next(iter: Array) -> bool:
 func _iter_get(iter: Variant) -> Variant:
 	return iter[0][iter[1]]
 
-func load_json(d: Variant) -> void:
+func load_json(d: Variant) -> String:
 	_unbind_refs()
 	entries.clear()
 	if d == null:
-		return
+		return ""
+	var _e := Archmage.ParseError.new()
 	for _k1: String in d:
-		entries[_k1] = SkillCfg.from_json(d[_k1])
+		entries[_k1] = SkillCfg.from_json(d[_k1], _e)
+		if _e.failed:
+			_e.at("[%s]" % _k1)
+			break
+	if _e.failed:
+		return _e.message_at("")
+	return ""
 
 ## Sets the ID of each config entry from its key.
 func apply_keys() -> void:

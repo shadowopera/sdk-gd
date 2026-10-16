@@ -13,17 +13,17 @@ var max_level: int
 ## Starting hero
 var start_hero: HeroTable.HeroCfg
 ## Server tick
-var tick_rate: Variant
+var tick_rate: Archmage.Duration
 ## Background color
-var bg_color: Variant
+var bg_color: Color
 ## Launch date
-var launch_date: Variant
+var launch_date: Archmage.DateTime
 ## Theme music
 var bgm: String
 ## Starter items
 var starter_items: Array[ItemTable.ItemCfg] = []
 ## Daily resets
-var daily_resets: Array = []
+var daily_resets: Array[Archmage.Duration] = []
 ## Allowed classes
 var allowed_classes: Array[SdkEnum.HeroClass] = []
 ## Level caps
@@ -37,36 +37,43 @@ var level_rewards: Dictionary[int, ItemTable.ItemCfg] = {}
 ## Tips
 var tips: Dictionary[String, String] = {}
 ## Class colors
-var class_colors: Dictionary[SdkEnum.HeroClass, Variant] = {}
+var class_colors: Dictionary[SdkEnum.HeroClass, Color] = {}
 ## Features
 var features: Dictionary[String, bool] = {}
 ## Message of the day
-var motd: Variant
+var motd: Archmage.Tuple
 ## Boss spawn
-var boss_spawn: Variant
+var boss_spawn: Archmage.Tuple
 ## Camera offset
-var camera_offset: Variant
+var camera_offset: Vector3
 ## Grid size
-var grid_size: Variant
+var grid_size: Vector2i
 ## Tint
-var tint: Variant
+var tint: Vector4
 ## World bounds
-var world_bounds: Variant
+var world_bounds: Vector4i
 
 var _start_hero_ref: int
 var _starter_items_ref: Array[int] = []
 var _level_rewards_ref: Dictionary[int, int] = {}
 
-func load_json(_d: Variant) -> void:
+func load_json(_d: Variant) -> String:
 	_unbind_refs()
 	if _d == null:
 		_d = {}
+	var _e := Archmage.ParseError.new()
 	title = J.s(_d.get("title"))
 	max_level = J.i(_d.get("maxLevel"))
 	_start_hero_ref = J.i(_d.get("startHero"))
-	tick_rate = _d.get("tickRate")
-	bg_color = _d.get("bgColor")
-	launch_date = _d.get("launchDate")
+	tick_rate = Archmage.Duration.from_json(_d.get("tickRate"), _e)
+	if _e.failed:
+		return _e.message_at(".tickRate")
+	bg_color = Archmage.Rgba.from_json(_d.get("bgColor"), _e)
+	if _e.failed:
+		return _e.message_at(".bgColor")
+	launch_date = Archmage.DateTime.from_json(_d.get("launchDate"), _e)
+	if _e.failed:
+		return _e.message_at(".launchDate")
 	bgm = J.s(_d.get("bgm"))
 	_starter_items_ref.clear()
 	var _starter_items_json: Variant = _d.get("starterItems")
@@ -77,7 +84,12 @@ func load_json(_d: Variant) -> void:
 	var _daily_resets_json: Variant = _d.get("dailyResets")
 	if _daily_resets_json != null:
 		for _e1: Variant in _daily_resets_json:
-			daily_resets.append(_e1)
+			daily_resets.append(Archmage.Duration.from_json(_e1, _e))
+			if _e.failed:
+				_e.at("[%d]" % (daily_resets.size() - 1))
+				break
+	if _e.failed:
+		return _e.message_at(".dailyResets")
 	allowed_classes.clear()
 	var _allowed_classes_json: Variant = _d.get("allowedClasses")
 	if _allowed_classes_json != null:
@@ -112,18 +124,26 @@ func load_json(_d: Variant) -> void:
 	var _class_colors_json: Variant = _d.get("classColors")
 	if _class_colors_json != null:
 		for _k1: String in _class_colors_json:
-			class_colors[int(_k1) as SdkEnum.HeroClass] = _class_colors_json[_k1]
+			class_colors[int(_k1) as SdkEnum.HeroClass] = Archmage.Rgba.from_json(_class_colors_json[_k1], _e)
+			if _e.failed:
+				_e.at("[%s]" % _k1)
+				break
+	if _e.failed:
+		return _e.message_at(".classColors")
 	features.clear()
 	var _features_json: Variant = _d.get("features")
 	if _features_json != null:
 		for _k1: String in _features_json:
 			features[_k1] = J.b(_features_json[_k1])
-	motd = _d.get("motd")
-	boss_spawn = _d.get("bossSpawn")
-	camera_offset = _d.get("cameraOffset")
-	grid_size = _d.get("gridSize")
-	tint = _d.get("tint")
-	world_bounds = _d.get("worldBounds")
+	motd = Archmage.Tuple.from_json(_d.get("motd"), [J.s], _e)
+	boss_spawn = Archmage.Tuple.from_json(_d.get("bossSpawn"), [J.i, J.i, Archmage.Duration.from_json, J.i, J.f, J.b, J.s], _e, [0])
+	if _e.failed:
+		return _e.message_at(".bossSpawn")
+	camera_offset = J.v3(_d.get("cameraOffset"))
+	grid_size = J.v2i(_d.get("gridSize"))
+	tint = J.v4(_d.get("tint"))
+	world_bounds = J.v4i(_d.get("worldBounds"))
+	return ""
 
 func to_json() -> Dictionary:
 	return {
@@ -175,9 +195,16 @@ func _bind_refs(_atlas: ConfigAtlas) -> String:
 			if _e1 == null:
 				return ".levelRewards[%s]%s" % [_k1, J.missing("ItemTable", _r1)]
 		level_rewards[_k1] = _e1
+	if boss_spawn != null:
+		if boss_spawn._ref_ids[0] != 0:
+			boss_spawn.items[0] = _atlas.hero_table.try_lookup(boss_spawn._ref_ids[0])
+			if boss_spawn.items[0] == null:
+				return ".bossSpawn.item0" + J.missing("HeroTable", boss_spawn._ref_ids[0])
 	return ""
 
 func _unbind_refs() -> void:
 	start_hero = null
 	starter_items.clear()
 	level_rewards.clear()
+	if boss_spawn != null:
+		boss_spawn._unbind_refs()

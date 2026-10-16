@@ -11,7 +11,7 @@ var enemy_level: int
 var xp_curve: Array[int] = []
 
 
-func load_json(d: Variant) -> void:
+func load_json(d: Variant) -> String:
 	if d == null:
 		d = {}
 	hp_scale = J.f(d.get("hpScale"))
@@ -23,6 +23,7 @@ func load_json(d: Variant) -> void:
 	if a != null:
 		for e: Variant in a:
 			xp_curve.append(J.i(e))
+	return ""
 
 
 func to_json() -> Dictionary:

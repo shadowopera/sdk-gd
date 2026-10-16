@@ -21,7 +21,7 @@ var _starter_items_ref: Array[int] = []
 var _level_rewards_ref: Dictionary[int, int] = {}
 
 
-func load_json(d: Variant) -> void:
+func load_json(d: Variant) -> String:
 	if d == null:
 		d = {}
 	title = J.s(d.get("title"))
@@ -66,6 +66,7 @@ func load_json(d: Variant) -> void:
 	if m != null:
 		for k: String in m:
 			features[k] = J.b(m[k])
+	return ""
 
 
 func to_json() -> Dictionary:

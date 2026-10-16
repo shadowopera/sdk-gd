@@ -2,7 +2,10 @@
 	"aura": {
 		"buffs": {},
 		"cooldown": null,
-		"damage": null,
+		"damage": {
+			"max": 0,
+			"min": 0
+		},
 		"id": "aura",
 		"mana": 0,
 		"name": "Holy Aura",
@@ -16,7 +19,10 @@
 			1,
 			250
 		],
-		"damage": null,
+		"damage": {
+			"max": 0,
+			"min": 0
+		},
 		"id": "blink",
 		"mana": 15,
 		"name": "Blink",
@@ -56,7 +62,10 @@
 			0,
 			3
 		],
-		"damage": null,
+		"damage": {
+			"max": 0,
+			"min": 0
+		},
 		"id": "fireball",
 		"mana": 30,
 		"name": "Fireball",
@@ -67,7 +76,10 @@
 	"fortitude": {
 		"buffs": {},
 		"cooldown": null,
-		"damage": null,
+		"damage": {
+			"max": 0,
+			"min": 0
+		},
 		"id": "fortitude",
 		"mana": 0,
 		"name": "Fortitude",
@@ -78,7 +90,10 @@
 	"heal": {
 		"buffs": {},
 		"cooldown": null,
-		"damage": null,
+		"damage": {
+			"max": 0,
+			"min": 0
+		},
 		"id": "heal",
 		"mana": 20,
 		"name": "Heal",

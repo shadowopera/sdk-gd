@@ -11,12 +11,13 @@ var entries: Dictionary[String, Dictionary] = {}
 
 var _entries_ref: Dictionary[String, Dictionary] = {}
 
-func load_json(d: Variant) -> void:
+func load_json(d: Variant) -> String:
 	_unbind_refs()
 	entries.clear()
 	_entries_ref.clear()
 	if d == null:
-		return
+		return ""
+	var _e := Archmage.ParseError.new()
 	for _k1: String in d:
 		var _c1: Dictionary = {}
 		if d[_k1] != null:
@@ -31,6 +32,7 @@ func load_json(d: Variant) -> void:
 						_c2.append(_c3)
 				_c1[_k2] = _c2
 		_entries_ref[_k1] = _c1
+	return ""
 
 func to_json() -> Dictionary:
 	return _entries_ref

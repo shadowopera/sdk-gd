@@ -20,7 +20,7 @@ class RaceCfg extends RefCounted:
 
 	var _heroes_ref: Array[int] = []
 
-	static func from_json(_d: Variant) -> RaceCfg:
+	static func from_json(_d: Variant, _e: Archmage.ParseError) -> RaceCfg:
 		if _d == null:
 			return null
 		var _x := RaceCfg.new()
@@ -92,13 +92,15 @@ func _iter_next(iter: Array) -> bool:
 func _iter_get(iter: Variant) -> Variant:
 	return iter[0][iter[1]]
 
-func load_json(d: Variant) -> void:
+func load_json(d: Variant) -> String:
 	_unbind_refs()
 	entries.clear()
 	if d == null:
-		return
+		return ""
+	var _e := Archmage.ParseError.new()
 	for _k1: String in d:
-		entries[_k1] = RaceCfg.from_json(d[_k1])
+		entries[_k1] = RaceCfg.from_json(d[_k1], _e)
+	return ""
 
 ## Sets the ID of each config entry from its key.
 func apply_keys() -> void:

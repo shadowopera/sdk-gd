@@ -73,7 +73,8 @@ func _ready() -> void:
 		var results: Array[Dictionary] = []
 		for path in _find_scripts(TESTS_DIR):
 			var script := load(path) as GDScript
-			if script == null:
+			# A script with a parse error loads, but cannot be instantiated and lists no methods.
+			if script == null or not script.can_instantiate():
 				results.append({"name": path.get_file(), "ok": false, "ms": 0, "message": "cannot load the script"})
 				continue
 			for method in _test_methods(script):

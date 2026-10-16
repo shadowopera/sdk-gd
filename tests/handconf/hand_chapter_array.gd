@@ -54,12 +54,13 @@ class ChapterCfg extends RefCounted:
 		hero = null
 
 
-func load_json(d: Variant) -> void:
+func load_json(d: Variant) -> String:
 	entries.clear()
 	if d == null:
-		return
+		return ""
 	for e: Variant in d:
 		entries.append(ChapterCfg.from_json(e))
+	return ""
 
 
 func to_json() -> Array:

@@ -21,10 +21,20 @@ const AtlasJson = preload("atlas_json.gd")
 const AtlasLoader = preload("atlas_loader.gd")
 const AtlasLogger = preload("atlas_logger.gd")
 const AtlasOptions = preload("atlas_options.gd")
+const DateTime = preload("date_time.gd")
+const Duration = preload("duration.gd")
 const FileAccessFS = preload("file_access_fs.gd")
 const FS = preload("fs.gd")
+const MinMax = preload("min_max.gd")
 const NullLogger = preload("null_logger.gd")
+const ParseError = preload("parse_error.gd")
+const Rgba = preload("rgba.gd")
+const Tuple = preload("tuple.gd")
+const Vec2 = preload("vec2.gd")
+const Vec3 = preload("vec3.gd")
+const Vec4 = preload("vec4.gd")
 const VersionInfo = preload("version_info.gd")
+const WeightedPool = preload("weighted_pool.gd")
 
 ## Matches the control characters that have no short escape in JSON.
 static var _control_chars: RegEx
@@ -32,9 +42,11 @@ static var _control_chars: RegEx
 
 ## Returns [param value] as canonical JSON: object keys sorted, one tab per indent level, and a trailing newline.
 ## [br][br]
-## [param value] may contain [code]null[/code], [bool], [int], [float], [String], [StringName], arrays, packed
-## arrays, dictionaries, and objects that have a [code]to_json()[/code] method, which is called and its result
-## converted. Dictionary keys are converted with [method @GlobalScope.str]. A [float] is written as Go's canonical
+## [param value] may contain [code]null[/code], [bool], [int], [float], [String], [StringName], [Color], Godot
+## vectors, arrays, packed arrays, dictionaries, and objects that have a [code]to_json()[/code] method, which is called
+## and its result converted. A [Color] is written as [code]Archmage.Rgba.to_json()[/code] returns it, and a Godot
+## vector as an object with the keys [code]x[/code], [code]y[/code], [code]z[/code] and [code]w[/code]. Dictionary
+## keys are converted with [method @GlobalScope.str]. A [float] is written as Go's canonical
 ## JSON writes it: with the fewest digits that parse back to the same value, and without a fraction or an exponent
 ## when it is an integer whose absolute value is below 1e21, such as [code]1000000000000000[/code]. For any other type, this method reports
 ## an error and writes [code]null[/code].
@@ -83,6 +95,14 @@ static func _write_canonical(value: Variant, indent: String, out: PackedStringAr
 			out.append(_format_float(value))
 		TYPE_STRING, TYPE_STRING_NAME:
 			out.append(_quote(String(value)))
+		TYPE_COLOR:
+			out.append(_quote(Rgba.to_json(value)))
+		TYPE_VECTOR2, TYPE_VECTOR2I:
+			_write_canonical({"x": value.x, "y": value.y}, indent, out)
+		TYPE_VECTOR3, TYPE_VECTOR3I:
+			_write_canonical({"x": value.x, "y": value.y, "z": value.z}, indent, out)
+		TYPE_VECTOR4, TYPE_VECTOR4I:
+			_write_canonical({"x": value.x, "y": value.y, "z": value.z, "w": value.w}, indent, out)
 		TYPE_DICTIONARY:
 			var d: Dictionary = value
 			if d.is_empty():
