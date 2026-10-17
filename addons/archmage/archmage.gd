@@ -1,7 +1,5 @@
 ## The entry point of the Archmage SDK and its only global class name.
 ##
-## Other SDK scripts have no [code]class_name[/code]. This script attaches them as constants,
-## so code refers to them as [code]Archmage.AtlasLoader[/code] without a [code]preload[/code].
 ## [codeblock]
 ## var atlas := ConfigAtlas.new()
 ## var loader := Archmage.AtlasLoader.new()
@@ -12,7 +10,6 @@
 class_name Archmage
 extends RefCounted
 
-## The version of the SDK.
 const VERSION := "0.1.0"
 
 const Atlas = preload("atlas.gd")
@@ -47,10 +44,8 @@ static var _control_chars := RegEx.create_from_string("[\\x00-\\x1f]")
 ## vectors, arrays, packed arrays, dictionaries, and objects that have a [code]to_json()[/code] method, which is called
 ## and its result converted. A [Color] is written as [code]Archmage.Rgba.to_json()[/code] returns it, and a Godot
 ## vector as an object with the keys [code]x[/code], [code]y[/code], [code]z[/code] and [code]w[/code]. Dictionary
-## keys are converted with [method @GlobalScope.str]. A [float] is written as Go's canonical
-## JSON writes it: with the fewest digits that parse back to the same value, and without a fraction or an exponent
-## when it is an integer whose absolute value is below 1e21, such as [code]1000000000000000[/code]. For any other type, this method reports
-## an error and writes [code]null[/code].
+## keys are converted with [method @GlobalScope.str]. A [float] is written as Go's canonical JSON writes it. For any
+## other type, this method reports an error and writes [code]null[/code].
 static func canonicalize(value: Variant) -> String:
 	var out := PackedStringArray()
 	_write_canonical(value, "", out)

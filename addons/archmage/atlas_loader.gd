@@ -9,9 +9,8 @@
 ##     push_error(loader.get_error_message())
 ## [/codeblock]
 ## The loader reads atlas.json, applies the atlas modifier, loads each item that is not skipped, merges the override
-## files into it, calls [code]apply_keys()[/code] of the item's object when it has one, resolves the references
-## between entries, and calls [method Archmage.Atlas.on_loaded]. Items are
-## loaded in the order of their keys, compared without case. Create a new atlas for each load.
+## files into it, resolves the references between entries, and calls [method Archmage.Atlas.on_loaded]. Create a new
+## atlas for each load.
 ## [br][br]
 ## [method load_atlas_async] does the same work without blocking the main thread:
 ## [codeblock]
@@ -98,7 +97,6 @@ class _ItemJob extends RefCounted:
 	var override_configs: Array[AtlasOptions.OverrideConfig]
 	## The config files of the item, relative to [member cfg_root].
 	var files: Array = []
-	## The ID of the WorkerThreadPool task that runs [method run].
 	var task_id := -1
 	## The result. On failure, [member message] is the cause without the item context.
 	var err: Error = OK
@@ -215,11 +213,11 @@ func load_atlas(atlas_file: String, cfg_root: String, atlas: Atlas, options: Atl
 ## Loads [param atlas] as [method load_atlas] does, without blocking the main thread, and returns the same codes.
 ## Call it on the main thread with [code]await[/code].
 ## [br][br]
-## Threads of the [WorkerThreadPool] read and parse the files of the items and call the [code]load_json[/code] and
-## [code]apply_keys[/code] methods of their objects, for at most [method Archmage.AtlasOptions.with_max_concurrency]
-## items at a time; the [Archmage.FS] methods that read files are called on these threads. The atlas modifier, the
-## logger, [method Archmage.Atlas.bind_refs] and [method Archmage.Atlas.on_loaded] run on the main thread. Without
-## thread support, as in a Web export without threads, the items are loaded on the main thread, one per frame.
+## Threads of the [WorkerThreadPool] read and parse the files of the items and fill their objects, for at most
+## [method Archmage.AtlasOptions.with_max_concurrency] items at a time; the [Archmage.FS] methods that read files are
+## called on these threads. The atlas modifier, the logger, [method Archmage.Atlas.bind_refs] and
+## [method Archmage.Atlas.on_loaded] run on the main thread. Without thread support, as in a Web export without
+## threads, the items are loaded on the main thread, one per frame.
 ## [br][br]
 ## Do not use [param atlas] until the load finishes, because its objects are filled over several frames. To keep
 ## using the loaded configs during a reload, load into a new atlas and replace the old one when the load succeeds.
@@ -471,9 +469,7 @@ func _keys_to_load(atlas: Atlas, opts: AtlasOptions) -> Array[String]:
 	return keys
 
 
-## Creates the job of one item and finds its files. When the files cannot be found, the job has the error. The job
-## reads the files with [param fs] and [param override_configs] instead of the options, which the caller may change
-## during an asynchronous load.
+## Creates the job of one item and finds its files. When the files cannot be found, the job has the error.
 static func _new_item_job(key: String, item: AtlasItem, atlas_json: AtlasJson, atlas_file: String, cfg_root: String,
 		opts: AtlasOptions, fs: FS, override_configs: Array[AtlasOptions.OverrideConfig]) -> _ItemJob:
 	var job := _ItemJob.new(item, key, cfg_root, fs, override_configs)
