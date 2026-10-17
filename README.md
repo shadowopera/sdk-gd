@@ -47,12 +47,9 @@ archmage enum -t gd -o enums "configs/*.enum.yaml"
 archmage struct -t json-gd -o conf -e "configs/*.enum.yaml" "configs/*.xlsx"
 ```
 
-See [archmage struct](https://docs.shadop.dev/archmage/cli/cmd-struct/) for the other flags. To show config ID properties as dropdowns in the Inspector, also generate the [editor plugin](https://docs.shadop.dev/archmage/gen-gd-editor/godot-editor/).
+See [archmage struct](https://docs.shadop.dev/archmage/cli/cmd-struct/) for the other flags.
 
-Export the config data with [archmage export](https://docs.shadop.dev/archmage/cli/cmd-export/) into a directory of the project, such as `configs/`.
-
-> [!NOTE]
-> Godot does not export JSON files by default. In each export preset, add `*.json` to **Filters to export non-resource files/folders** on the **Resources** tab. Without it, the exported game cannot read the configs.
+To show config ID properties as dropdowns in the Inspector, also generate the [editor plugin](https://docs.shadop.dev/archmage/gen-gd-editor/godot-editor/).
 
 ## Getting Started
 
@@ -70,6 +67,9 @@ print(hero.level, hero.weapon.id)
 ```
 
 As with `JSON.parse()`, `load_atlas` returns an `Error` code, `OK` on success. `get_error_message()` of the loader returns the message, which locates the failure, such as `<archmage> failed to bind refs | hero[3].weapon: ItemTable: config entry not found for ID 999`.
+
+> [!NOTE]
+> Godot does not export JSON files by default. In each export preset, add `*.json` to **Filters to export non-resource files/folders** on the **Resources** tab. Without it, the exported game cannot read the configs.
 
 ## Concepts
 
@@ -102,7 +102,7 @@ Example `atlas.json`:
 
 `ConfigAtlas` has one field per config source, such as `atlas.hero_table` and `atlas.game_cfg`. Each config source has its own file and class, such as `HeroTable`; the other types of the source are inner classes, such as `HeroTable.HeroCfg`. Field names are snake_case: `critRate` becomes `crit_rate`. A field whose name is a GDScript keyword gets a trailing underscore: `class` becomes `class_`.
 
-A regular table holds its config entries in `entries`, a `Dictionary` keyed by config ID, and provides these methods:
+A table, such as `HeroTable`, holds its config entries in `entries`, a `Dictionary` keyed by config ID, and provides these methods:
 
 | Method | Returns |
 |---|---|
@@ -214,14 +214,14 @@ opts.with_max_concurrency(8)
 A custom logger extends `Archmage.AtlasLogger` and overrides `info(message)`.
 
 **Whitelist and blacklist** — If a non-empty whitelist is set, only listed keys are loaded (blacklist
-is ignored). All keys must exist in the atlas, or the load fails.
+is ignored). Every key in either list must be an atlas item, or the load fails.
 
 **Variant selection** — A variant-mapped key loads its `"/"` variant unless `with_variant`
 selects another one. The variant in use is recorded in the `variant` field of the atlas item, such as `atlas.atlas_items()["game"].variant`.
 
 **Override layers** — Each `with_override_root` / `with_override_fs` call adds another
-override source. When loading an atlas item, each override source is checked in the order they
-were added; any matching file is merged on top of the base data. This is useful for environment-specific patches.
+override source. When loading an atlas item, each override source is checked in the order in which it
+was added; any matching file is merged on top of the base data, so a later source overrides an earlier one.
 
 Field-level merge rules during override processing:
 
@@ -290,7 +290,7 @@ A vector field whose elements are `float32` is a `Vector2`, `Vector3` or `Vector
 
 `duplicate()` returns a shallow copy of the pool with its own `items` and `weights` arrays, for code that changes the weights at run time without changing the config entry. The items themselves, such as config entries, are shared.
 
-The sampling methods of `MinMax` and `WeightedPool` take an optional `RandomNumberGenerator`; without it, they use the global random number generator.
+`MinMax.sample()`, `WeightedPool.sample()` and `WeightedPool.sample_index()` take an optional `RandomNumberGenerator`; without it, they use the global random number generator.
 
 ### Tuple
 
@@ -315,7 +315,7 @@ i18n.text("ui.ok", "ja")  # → falls back to "OK" in "en"
 i18n.text("ui.xx", "ja")  # → no translation found, so returns "ui.xx"
 ```
 
-To detect a missing translation, use `get_text`, which returns `null`. `merge_l10n_file_async` reads and parses the file on a worker thread; call it with `await`.
+To detect a missing translation, use `get_text`, which returns `null` when neither the language nor the fallback language has the key. `merge_l10n_file_async` reads and parses the file on a worker thread; call it with `await`.
 
 ### L10n Fields
 
