@@ -4,10 +4,12 @@
 class_name GameCfg
 extends RefCounted
 
+@warning_ignore_start("shadowed_global_identifier")
+
 const J = preload("archmage.gd")
 
 ## Game title
-var title: String
+var title: L10n = L10n.EMPTY
 ## Max level
 var max_level: int
 ## Starting hero
@@ -35,7 +37,7 @@ var slot_sizes: Array[int] = []
 ## Level rewards
 var level_rewards: Dictionary[int, ItemTable.ItemCfg] = {}
 ## Tips
-var tips: Dictionary[String, String] = {}
+var tips: Dictionary[String, L10n] = {}
 ## Class colors
 var class_colors: Dictionary[SdkEnum.HeroClass, Color] = {}
 ## Features
@@ -62,7 +64,7 @@ func load_json(_d: Variant) -> String:
 	if _d == null:
 		_d = {}
 	var _e := Archmage.ParseError.new()
-	title = J.s(_d.get("title"))
+	title = L10n.from_json(_d.get("title"))
 	max_level = J.i(_d.get("maxLevel"))
 	_start_hero_ref = J.i(_d.get("startHero"))
 	tick_rate = Archmage.Duration.from_json(_d.get("tickRate"), _e)
@@ -119,7 +121,7 @@ func load_json(_d: Variant) -> String:
 	var _tips_json: Variant = _d.get("tips")
 	if _tips_json != null:
 		for _k1: String in _tips_json:
-			tips[_k1] = J.s(_tips_json[_k1])
+			tips[_k1] = L10n.from_json(_tips_json[_k1])
 	class_colors.clear()
 	var _class_colors_json: Variant = _d.get("classColors")
 	if _class_colors_json != null:

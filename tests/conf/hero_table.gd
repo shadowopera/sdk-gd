@@ -4,6 +4,8 @@
 class_name HeroTable
 extends RefCounted
 
+@warning_ignore_start("shadowed_global_identifier")
+
 const J = preload("archmage.gd")
 
 ## The entries, keyed by config ID.
@@ -12,7 +14,7 @@ var entries: Dictionary[int, HeroCfg] = {}
 class HeroCfg extends RefCounted:
 	var id: int
 	## Hero name
-	var name: String
+	var name: L10n = L10n.EMPTY
 	## Title
 	var title: String
 	## Class
@@ -78,7 +80,7 @@ class HeroCfg extends RefCounted:
 		if _d == null:
 			return null
 		var _x := HeroCfg.new()
-		_x.name = J.s(_d.get("name"))
+		_x.name = L10n.from_json(_d.get("name"))
 		_x.title = J.s(_d.get("title"))
 		_x.class_ = J.i(_d.get("class")) as SdkEnum.HeroClass
 		_x.elements = J.i(_d.get("elements"))

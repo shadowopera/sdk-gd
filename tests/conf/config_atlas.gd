@@ -40,6 +40,9 @@ var _items: Dictionary[String, Archmage.AtlasItem] = {
 	"skill": Archmage.AtlasItem.new(skill_table, Archmage.AtlasItem.MAPPING_MANY),
 }
 
+func _init() -> void:
+	_pubtype_check()
+
 ## Returns the version info of the config repo at codegen time, or [code]null[/code] when none was given then.
 static func code_version() -> Archmage.VersionInfo:
 	return _AtlasVersion.code_version()
@@ -98,3 +101,10 @@ func unbind_refs() -> void:
 
 func on_loaded() -> String:
 	return extension.on_loaded(self)
+
+static func _pubtype_check() -> void:
+	var m := {}
+	m["Stats"] = true # hero
+	m["Price"] = true # item
+	if m.size() != 2:
+		push_error("conflicting pubtype detected")

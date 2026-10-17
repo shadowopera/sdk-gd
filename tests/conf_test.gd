@@ -130,7 +130,7 @@ func test_basic() -> void:
 
 	var arthur := atlas.hero_table.lookup(1)
 	check_eq(arthur.id, 1, "hero 1 id")
-	check_eq(arthur.name, "l10n.xlsx|hero.arthur", "an l10n field holds the key")
+	check_eq(arthur.name.key, "l10n.xlsx|hero.arthur", "the key of an l10n field")
 	check_eq(arthur.class_, SdkEnum.HeroClass.WARRIOR, "hero 1 class")
 	check_eq(arthur.gold, 999999999999999, "hero 1 gold")
 	check_eq(arthur.stats.atk, 88.5, "hero 1 stats.atk")
@@ -364,7 +364,9 @@ func test_drop_atlas_frees_entries() -> void:
 	var ids := atlas_ids(atlas)
 	check(ids.size() > 50, "objects found: %d" % ids.size())
 	atlas = null
-	var alive := ids.filter(func(id: int) -> bool: return is_instance_id_valid(id))
+	# L10n.EMPTY is shared by every empty l10n value, so it outlives the atlas.
+	var empty_l10n := L10n.EMPTY.get_instance_id()
+	var alive := ids.filter(func(id: int) -> bool: return is_instance_id_valid(id) and id != empty_l10n)
 	check_eq(alive.size(), 0, "objects alive after the atlas is dropped")
 
 

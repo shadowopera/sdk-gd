@@ -297,7 +297,7 @@ To detect a missing translation, use `get_text`, which returns `null`. `merge_l1
 
 ### L10n Fields
 
-An `l10n` field is a `String` that holds the l10n key, such as `atlas.game_cfg.title`. The generated `L10n` class looks up the text in a shared `Archmage.I18n`. Set `L10n.get_i18n` and `L10n.get_preferred_language` before use, for example in an autoload:
+An `l10n` field, such as `atlas.game_cfg.title`, is an `L10n`: a generated class that holds the l10n key and looks up its text in a shared `Archmage.I18n`. Set `L10n.get_i18n` and `L10n.get_preferred_language` before use, for example in an autoload:
 
 ```gdscript
 extends Node
@@ -320,10 +320,12 @@ Set them to methods, as above, or to static functions. If a lambda is still set 
 Then, in your code:
 
 ```gdscript
-var title := L10n.text(atlas.game_cfg.title)
+var title := atlas.game_cfg.title.text
 ```
 
-`L10n.text(key)` returns the key when no language has it; `L10n.get_text(key, lang)` returns `null` then.
+`text` returns the key when no language has it; `get_text(lang)` returns `null` then. The `==` operator compares two `L10n` objects, not their keys; to compare keys, compare their `key` properties.
+
+To use less memory, set [`ARCHMAGE_GD_STRING_L10N`](https://docs.shadop.dev/archmage/cli/cmd-struct/#template-specific) to `true` when you generate the code: each `l10n` field is then a `String` that holds the l10n key, and `L10n.text(key)` and `L10n.get_text(key, lang)` look up its text.
 
 ### Godot Translations
 

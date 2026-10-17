@@ -4,6 +4,8 @@
 class_name RaceTable
 extends RefCounted
 
+@warning_ignore_start("shadowed_global_identifier")
+
 const J = preload("archmage.gd")
 
 ## The entries, keyed by config ID.
@@ -12,7 +14,7 @@ var entries: Dictionary[String, RaceCfg] = {}
 class RaceCfg extends RefCounted:
 	var id: String
 	## Birthplace
-	var birthplace: String
+	var birthplace: L10n = L10n.EMPTY
 	## Heroes
 	var heroes: Array[HeroTable.HeroCfg] = []
 	## Hero IDs
@@ -24,7 +26,7 @@ class RaceCfg extends RefCounted:
 		if _d == null:
 			return null
 		var _x := RaceCfg.new()
-		_x.birthplace = J.s(_d.get("birthplace"))
+		_x.birthplace = L10n.from_json(_d.get("birthplace"))
 		var _heroes_json: Variant = _d.get("heroes")
 		if _heroes_json != null:
 			for _e1: Variant in _heroes_json:

@@ -68,6 +68,6 @@ static func _initialize_cfg_id_choices(atlas: ConfigAtlas) -> void:
 
 	# To show more than just the ID, register the choices of a table with a display formatter.
 	CfgIdChoices.register_hero(atlas.hero_table,
-			func(id: int) -> String: return "%d (%s)" % [id, L10n.text(atlas.hero_table.lookup(id).name)])
+			func(id: int) -> String: return "%d (%s)" % [id, atlas.hero_table.lookup(id).name.text])
 	CfgIdChoices.register_race(atlas.race_table,
-			func(id: String) -> String: return "%s (%s)" % [id, L10n.text(atlas.race_table.lookup(id).birthplace)])
+			func(id: String) -> String: return "%s (%s)" % [id, atlas.race_table.lookup(id).birthplace.text])

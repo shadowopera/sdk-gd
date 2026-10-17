@@ -116,35 +116,52 @@ func test_generated_l10n() -> void:
 	L10n.get_i18n = func() -> Archmage.I18n: return i18n
 	L10n.get_preferred_language = func() -> String: return "zh"
 
-	check_eq(L10n.get_text(atlas.game_cfg.title, "en"), "Legends of Avalon", "game title in en")
-	check_eq(L10n.text(atlas.game_cfg.title), "阿瓦隆传说", "game title in zh")
-	check_eq(L10n.text(atlas.hero_table.lookup(1).name), "Arthur Pendragon", "hero 1 name falls back")
-	check_eq(L10n.text(atlas.race_table.lookup("Elf").birthplace), "Silverwood", "Elf birthplace falls back")
-	check_eq(L10n.text(atlas.game_cfg.tips["login"]), "Welcome back!", "an l10n map value")
-	check_eq(L10n.get_text(atlas.hero_table.lookup(4).name, "zh"), "", "get_text of an empty key")
-	check_eq(L10n.text(atlas.hero_table.lookup(4).name), "", "text of an empty key")
-	check_eq(L10n.get_text("no such key", "zh"), null, "get_text of a missing key")
-	check_eq(L10n.text("no such key"), "no such key", "text of a missing key")
+	check_eq(atlas.game_cfg.title.get_text("en"), "Legends of Avalon", "game title in en")
+	check_eq(atlas.game_cfg.title.text, "阿瓦隆传说", "game title in zh")
+	check_eq(atlas.hero_table.lookup(1).name.text, "Arthur Pendragon", "hero 1 name falls back")
+	check_eq(atlas.race_table.lookup("Elf").birthplace.text, "Silverwood", "Elf birthplace falls back")
+	check_eq(atlas.game_cfg.tips["login"].text, "Welcome back!", "an l10n map value")
+	check_eq(atlas.hero_table.lookup(4).name.get_text("zh"), "", "get_text of an empty key")
+	check_eq(atlas.hero_table.lookup(4).name.text, "", "text of an empty key")
+	check(atlas.hero_table.lookup(4).name == L10n.EMPTY, "an empty l10n value is L10n.EMPTY")
+	check_eq(L10n.new("no such key").get_text("zh"), null, "get_text of a missing key")
+	check_eq(L10n.new("no such key").text, "no such key", "text of a missing key")
 	check_eq(SdkEnum.get_hero_class_l10n_key(SdkEnum.HeroClass.WARRIOR), "enum::HeroClass.Warrior", "Warrior key")
 	check_eq(SdkEnum.get_hero_class_l10n_key(SdkEnum.HeroClass.RANGER), "", "Ranger has no key")
-	check_eq(L10n.text(SdkEnum.get_hero_class_l10n_key(SdkEnum.HeroClass.WARRIOR)), "战士", "Warrior in zh")
+	check_eq(L10n.new(SdkEnum.get_hero_class_l10n_key(SdkEnum.HeroClass.WARRIOR)).text, "战士", "Warrior in zh")
 	L10n.get_i18n = Callable()
 	L10n.get_preferred_language = Callable()
 
 
 func test_generated_l10n_not_set() -> void:
 	capture_errors()
-	check_eq(L10n.text("k"), "k", "text without get_i18n")
-	check_eq(L10n.get_text("k", "en"), null, "get_text without get_i18n")
-	check_eq(L10n.text(""), "", "text of an empty key without get_i18n")
+	check_eq(L10n.new("k").text, "k", "text without get_i18n")
+	check_eq(L10n.new("k").get_text("en"), null, "get_text without get_i18n")
+	check_eq(L10n.EMPTY.text, "", "text of an empty key without get_i18n")
 	var i18n := I18n.new("en")
 	i18n.merge_texts({"k": "K"}, "en")
 	L10n.get_i18n = func() -> Archmage.I18n: return i18n
-	check_eq(L10n.get_text("k", "en"), "K", "get_text without get_preferred_language")
-	check_eq(L10n.text("k"), "k", "text without get_preferred_language")
+	check_eq(L10n.new("k").get_text("en"), "K", "get_text without get_preferred_language")
+	check_eq(L10n.new("k").text, "k", "text without get_preferred_language")
 	L10n.get_i18n = Callable()
 	var errors := take_errors()
 	check_eq(errors.size(), 3, "errors: %s" % [errors])
 	if errors.size() == 3:
 		check(errors[0].contains("L10n.get_i18n is not set"), errors[0])
 		check(errors[2].contains("L10n.get_preferred_language is not set"), errors[2])
+
+
+func test_generated_l10n_value() -> void:
+	check(L10n.from_json(null) == L10n.EMPTY, "null gives L10n.EMPTY")
+	check(L10n.from_json("") == L10n.EMPTY, "an empty string gives L10n.EMPTY")
+	var l := L10n.from_json("a.b")
+	check_eq(l.key, "a.b", "key")
+	check_eq(l.to_json(), "a.b", "to_json")
+	check_eq(str(l), "a.b", "str")
+	check_eq(Archmage.canonicalize([l]), "[\n\t\"a.b\"\n]\n", "canonicalize")
+	capture_errors()
+	l.key = "x"
+	l.text = "x"
+	var errors := take_errors()
+	check_eq(l.key, "a.b", "key after assignment")
+	check_eq(errors.size(), 2, "errors: %s" % [errors])

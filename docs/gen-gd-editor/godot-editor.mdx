@@ -69,7 +69,7 @@ By default, each dropdown shows only the IDs. To show more, register the choices
 
 ```gdscript
 CfgIdChoices.register_hero(atlas.hero_table,
-		func(id: int) -> String: return "%d (%s)" % [id, L10n.text(atlas.hero_table.lookup(id).name)])
+		func(id: int) -> String: return "%d (%s)" % [id, atlas.hero_table.lookup(id).name.text])
 ```
 
-If the formatter reads localized text, such as with `L10n.text`, the load code must also set [`L10n.get_i18n` and `L10n.get_preferred_language`](/archmage/overview-gd/sdk-gd/#l10n-fields).
+If the formatter reads localized text, such as `name.text` above, the load code must also set [`L10n.get_i18n` and `L10n.get_preferred_language`](/archmage/overview-gd/sdk-gd/#l10n-fields).

@@ -4,6 +4,8 @@
 class_name BalanceCfg
 extends RefCounted
 
+@warning_ignore_start("shadowed_global_identifier")
+
 const J = preload("archmage.gd")
 
 ## Enemy HP scale
