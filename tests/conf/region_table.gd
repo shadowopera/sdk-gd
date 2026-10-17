@@ -26,19 +26,15 @@ class RegionCfg extends RefCounted:
 	var _monsters_ref: Array[int] = []
 
 	static func from_json(_d: Variant, _e: Archmage.ParseError) -> RegionCfg:
-		if _d == null:
-			return null
+		if _d is not Dictionary:
+			return J.o(_d, "RegionTable.RegionCfg", _e)
 		var _x := RegionCfg.new()
-		_x.name = J.s(_d.get("name"))
-		_x.climate = J.s(_d.get("climate"))
-		var _neighbors_json: Variant = _d.get("neighbors")
-		if _neighbors_json != null:
-			for _e1: Variant in _neighbors_json:
-				_x._neighbors_ref.append(J.s(_e1))
-		var _monsters_json: Variant = _d.get("monsters")
-		if _monsters_json != null:
-			for _e1: Variant in _monsters_json:
-				_x._monsters_ref.append(J.i(_e1))
+		_x.name = J.s(_d.get("name"), _e)
+		_x.climate = J.s(_d.get("climate"), _e)
+		for _e1: Variant in J.a(_d.get("neighbors"), _e):
+			_x._neighbors_ref.append(J.s(_e1, _e))
+		for _e1: Variant in J.a(_d.get("monsters"), _e):
+			_x._monsters_ref.append(J.i(_e1, _e))
 		return _x
 
 	func to_json() -> Dictionary:
@@ -112,11 +108,15 @@ func _iter_get(iter: Variant) -> Variant:
 func load_json(d: Variant) -> String:
 	_unbind_refs()
 	entries.clear()
-	if d == null:
-		return ""
 	var _e := Archmage.ParseError.new()
-	for _k1: String in d:
-		entries[_k1] = RegionCfg.from_json(d[_k1], _e)
+	var _m1 := J.m(d, _e)
+	for _k1: String in _m1:
+		entries[_k1] = RegionCfg.from_json(_m1[_k1], _e)
+		if _e.failed or _e.mismatched:
+			_e.at("[%s]" % _k1)
+			break
+	if _e.failed or _e.mismatched:
+		return _e.message_at("")
 	return ""
 
 ## Sets the ID of each config entry from its key.

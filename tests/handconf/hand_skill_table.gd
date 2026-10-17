@@ -17,19 +17,18 @@ class SkillCfg extends RefCounted:
 	var buffs: Dictionary[String, BuffsEntry] = {}
 	var radius: float
 
-	static func from_json(d: Variant) -> SkillCfg:
-		if d == null:
-			return null
+	static func from_json(d: Variant, pe: Archmage.ParseError) -> SkillCfg:
+		if d is not Dictionary:
+			return J.o(d, "HandSkillTable.SkillCfg", pe)
 		var x := SkillCfg.new()
-		x.name = J.s(d.get("name"))
-		x.mana = J.i(d.get("mana"))
-		x.school = J.i(d.get("school"))
-		x.src = J.s(d.get("src"))
-		var m: Variant = d.get("buffs")
-		if m != null:
-			for k: String in m:
-				x.buffs[k] = BuffsEntry.from_json(m[k])
-		x.radius = J.f(d.get("radius"))
+		x.name = J.s(d.get("name"), pe)
+		x.mana = J.i(d.get("mana"), pe)
+		x.school = J.i(d.get("school"), pe)
+		x.src = J.s(d.get("src"), pe)
+		var m := J.m(d.get("buffs"), pe)
+		for k: String in m:
+			x.buffs[k] = BuffsEntry.from_json(m[k], pe)
+		x.radius = J.f(d.get("radius"), pe)
 		return x
 
 	func to_json() -> Dictionary:
@@ -55,12 +54,12 @@ class BuffsEntry extends RefCounted:
 
 	var _source_ref: int
 
-	static func from_json(d: Variant) -> BuffsEntry:
-		if d == null:
-			return null
+	static func from_json(d: Variant, pe: Archmage.ParseError) -> BuffsEntry:
+		if d is not Dictionary:
+			return J.o(d, "HandSkillTable.BuffsEntry", pe)
 		var x := BuffsEntry.new()
-		x.stacks = J.i(d.get("stacks"))
-		x._source_ref = J.i(d.get("source"))
+		x.stacks = J.i(d.get("stacks"), pe)
+		x._source_ref = J.i(d.get("source"), pe)
 		return x
 
 	func to_json() -> Dictionary:
@@ -92,10 +91,15 @@ func try_lookup(id: String) -> SkillCfg:
 
 func load_json(d: Variant) -> String:
 	entries.clear()
-	if d == null:
-		return ""
-	for k: String in d:
-		entries[k] = SkillCfg.from_json(d[k])
+	var pe := Archmage.ParseError.new()
+	var m := J.m(d, pe)
+	for k: String in m:
+		entries[k] = SkillCfg.from_json(m[k], pe)
+		if pe.failed or pe.mismatched:
+			pe.at("[%s]" % k)
+			break
+	if pe.failed or pe.mismatched:
+		return pe.message_at("")
 	return ""
 
 

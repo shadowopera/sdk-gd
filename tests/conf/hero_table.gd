@@ -77,26 +77,26 @@ class HeroCfg extends RefCounted:
 	var _race_ref: String
 
 	static func from_json(_d: Variant, _e: Archmage.ParseError) -> HeroCfg:
-		if _d == null:
-			return null
+		if _d is not Dictionary:
+			return J.o(_d, "HeroTable.HeroCfg", _e)
 		var _x := HeroCfg.new()
-		_x.name = L10n.from_json(_d.get("name"))
-		_x.title = J.s(_d.get("title"))
-		_x.class_ = J.i(_d.get("class")) as SdkEnum.HeroClass
-		_x.elements = J.i(_d.get("elements"))
-		_x.level = J.i(_d.get("level"))
-		_x.luck = J.i(_d.get("luck"))
-		_x.rank = J.i(_d.get("rank"))
-		_x.hp = J.i(_d.get("hp"))
-		_x.mp = J.i(_d.get("mp"))
-		_x.fame = J.i(_d.get("fame"))
-		_x.gold = J.i(_d.get("gold"))
-		_x.exp = J.i(_d.get("exp"))
-		_x.power = J.i(_d.get("power"))
-		_x.souls = J.i(_d.get("souls"))
-		_x.crit_rate = J.f(_d.get("critRate"))
-		_x.dodge = J.f(_d.get("dodge"))
-		_x.move_speed = J.f(_d.get("moveSpeed"))
+		_x.name = L10n.from_json(_d.get("name"), _e)
+		_x.title = J.s(_d.get("title"), _e)
+		_x.class_ = J.i(_d.get("class"), _e) as SdkEnum.HeroClass
+		_x.elements = J.i(_d.get("elements"), _e)
+		_x.level = J.i(_d.get("level"), _e)
+		_x.luck = J.i(_d.get("luck"), _e)
+		_x.rank = J.i(_d.get("rank"), _e)
+		_x.hp = J.i(_d.get("hp"), _e)
+		_x.mp = J.i(_d.get("mp"), _e)
+		_x.fame = J.i(_d.get("fame"), _e)
+		_x.gold = J.i(_d.get("gold"), _e)
+		_x.exp = J.i(_d.get("exp"), _e)
+		_x.power = J.i(_d.get("power"), _e)
+		_x.souls = J.i(_d.get("souls"), _e)
+		_x.crit_rate = J.f(_d.get("critRate"), _e)
+		_x.dodge = J.f(_d.get("dodge"), _e)
+		_x.move_speed = J.f(_d.get("moveSpeed"), _e)
 		_x.stats = Stats.from_json(_d.get("stats"), _e)
 		_x.growth = Stats.from_json(_d.get("growth"), _e)
 		_x.birthday = Archmage.DateTime.from_json(_d.get("birthday"), _e)
@@ -108,17 +108,15 @@ class HeroCfg extends RefCounted:
 		_x.theme_color = Archmage.Rgba.from_json(_d.get("themeColor"), _e)
 		if _e.failed:
 			return _e.at(".themeColor")
-		_x.portrait = J.s(_d.get("portrait"))
-		_x.playable = J.b(_d.get("playable"))
-		_x._weapon_ref = J.i(_d.get("weapon"))
-		_x.weapon_id = J.i(_d.get("weaponId"))
-		_x._race_ref = J.s(_d.get("race"))
-		_x.spawn_pos = J.v3i(_d.get("spawnPos"))
-		_x.facing = J.v2(_d.get("facing"))
-		var _talents_json: Variant = _d.get("talents")
-		if _talents_json != null:
-			for _e1: Variant in _talents_json:
-				_x.talents.append(Hero_TalentsEntry.from_json(_e1, _e))
+		_x.portrait = J.s(_d.get("portrait"), _e)
+		_x.playable = J.b(_d.get("playable"), _e)
+		_x._weapon_ref = J.i(_d.get("weapon"), _e)
+		_x.weapon_id = J.i(_d.get("weaponId"), _e)
+		_x._race_ref = J.s(_d.get("race"), _e)
+		_x.spawn_pos = J.v3i(_d.get("spawnPos"), _e)
+		_x.facing = J.v2(_d.get("facing"), _e)
+		for _e1: Variant in J.a(_d.get("talents"), _e):
+			_x.talents.append(Hero_TalentsEntry.from_json(_e1, _e))
 		return _x
 
 	func to_json() -> Dictionary:
@@ -186,11 +184,11 @@ class Stats extends RefCounted:
 	var atk: float
 
 	static func from_json(_d: Variant, _e: Archmage.ParseError) -> Stats:
-		if _d == null:
-			return null
+		if _d is not Dictionary:
+			return J.o(_d, "HeroTable.Stats", _e)
 		var _x := Stats.new()
-		_x.hp = J.i(_d.get("hp"))
-		_x.atk = J.f(_d.get("atk"))
+		_x.hp = J.i(_d.get("hp"), _e)
+		_x.atk = J.f(_d.get("atk"), _e)
 		return _x
 
 	func to_json() -> Dictionary:
@@ -209,11 +207,11 @@ class Hero_TalentsEntry extends RefCounted:
 	var _skill_ref: String
 
 	static func from_json(_d: Variant, _e: Archmage.ParseError) -> Hero_TalentsEntry:
-		if _d == null:
-			return null
+		if _d is not Dictionary:
+			return J.o(_d, "HeroTable.Hero_TalentsEntry", _e)
 		var _x := Hero_TalentsEntry.new()
-		_x._skill_ref = J.s(_d.get("skill"))
-		_x.tier = J.i(_d.get("tier"))
+		_x._skill_ref = J.s(_d.get("skill"), _e)
+		_x.tier = J.i(_d.get("tier"), _e)
 		return _x
 
 	func to_json() -> Dictionary:
@@ -269,15 +267,14 @@ func _iter_get(iter: Variant) -> Variant:
 func load_json(d: Variant) -> String:
 	_unbind_refs()
 	entries.clear()
-	if d == null:
-		return ""
 	var _e := Archmage.ParseError.new()
-	for _k1: String in d:
-		entries[int(_k1)] = HeroCfg.from_json(d[_k1], _e)
-		if _e.failed:
+	var _m1 := J.m(d, _e)
+	for _k1: String in _m1:
+		entries[J.k(_k1, _e)] = HeroCfg.from_json(_m1[_k1], _e)
+		if _e.failed or _e.mismatched:
 			_e.at("[%s]" % _k1)
 			break
-	if _e.failed:
+	if _e.failed or _e.mismatched:
 		return _e.message_at("")
 	return ""
 

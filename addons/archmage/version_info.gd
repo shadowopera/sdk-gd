@@ -4,6 +4,8 @@
 extends RefCounted
 
 const VersionInfo = preload("version_info.gd")
+const DateTime = preload("date_time.gd")
+const ParseError = preload("parse_error.gd")
 
 ## The semantic version given with the [code]--semver[/code] flag of archmage.
 var semver := ""
@@ -17,8 +19,9 @@ var branch := ""
 var id := ""
 ## The abbreviated commit ID.
 var short_id := ""
-## The commit time in RFC 3339 format, such as [code]2025-02-09T10:23:45Z[/code].
-var timestamp := ""
+## The commit time, the zero value when the object has none. In atlas.json, it is an RFC 3339 string, such as
+## [code]2025-02-09T10:23:45Z[/code].
+var timestamp := DateTime.new()
 ## The commit message.
 var message := ""
 ## The commit author.
@@ -30,8 +33,9 @@ var extra: Dictionary = {}
 
 
 ## Returns the version info in [param d], a parsed JSON object, or [code]null[/code] when [param d] is not a
-## [Dictionary].
-static func from_json(d: Variant) -> VersionInfo:
+## [Dictionary]. When the timestamp is not an RFC 3339 string, records the error in [param e] (see
+## [method Archmage.ParseError.report]) and keeps the zero value.
+static func from_json(d: Variant, e: ParseError = null) -> VersionInfo:
 	if not d is Dictionary:
 		return null
 	var v := VersionInfo.new()
@@ -41,13 +45,13 @@ static func from_json(d: Variant) -> VersionInfo:
 	v.branch = _string(d.get("branch"))
 	v.id = _string(d.get("id"))
 	v.short_id = _string(d.get("shortId"))
-	v.timestamp = _string(d.get("timestamp"))
+	v.timestamp = DateTime.from_json(d.get("timestamp"), e)
 	v.message = _string(d.get("message"))
 	v.author = _string(d.get("author"))
 	v.status = _strings(d.get("status"))
-	var e: Variant = d.get("extra")
-	if e is Dictionary:
-		v.extra = e
+	var extra_json: Variant = d.get("extra")
+	if extra_json is Dictionary:
+		v.extra = extra_json
 	return v
 
 
@@ -60,7 +64,7 @@ func to_json() -> Dictionary:
 		"branch": branch,
 		"id": id,
 		"shortId": short_id,
-		"timestamp": timestamp,
+		"timestamp": timestamp.to_json(),
 		"message": message,
 		"author": author,
 		"status": status,

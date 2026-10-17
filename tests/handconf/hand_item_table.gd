@@ -22,25 +22,21 @@ class ItemCfg extends RefCounted:
 
 	var _best_owner_ref: int
 
-	static func from_json(d: Variant) -> ItemCfg:
-		if d == null:
-			return null
+	static func from_json(d: Variant, pe: Archmage.ParseError) -> ItemCfg:
+		if d is not Dictionary:
+			return J.o(d, "HandItemTable.ItemCfg", pe)
 		var x := ItemCfg.new()
-		x.name = J.s(d.get("name"))
-		x.rarity = J.i(d.get("rarity"))
-		x.price = Price.from_json(d.get("price"))
-		x.sell_price = Price.from_json(d.get("sellPrice"))
-		var a: Variant = d.get("tags")
-		if a != null:
-			for e: Variant in a:
-				x.tags.append(J.s(e))
-		x.icon = J.s(d.get("icon"))
-		x.stackable = J.b(d.get("stackable"))
-		x._best_owner_ref = J.i(d.get("bestOwner"))
-		a = d.get("enchants")
-		if a != null:
-			for e: Variant in a:
-				x.enchants.append(EnchantsEntry.from_json(e))
+		x.name = J.s(d.get("name"), pe)
+		x.rarity = J.i(d.get("rarity"), pe)
+		x.price = Price.from_json(d.get("price"), pe)
+		x.sell_price = Price.from_json(d.get("sellPrice"), pe)
+		for e: Variant in J.a(d.get("tags"), pe):
+			x.tags.append(J.s(e, pe))
+		x.icon = J.s(d.get("icon"), pe)
+		x.stackable = J.b(d.get("stackable"), pe)
+		x._best_owner_ref = J.i(d.get("bestOwner"), pe)
+		for e: Variant in J.a(d.get("enchants"), pe):
+			x.enchants.append(EnchantsEntry.from_json(e, pe))
 		return x
 
 	func to_json() -> Dictionary:
@@ -80,12 +76,12 @@ class Price extends RefCounted:
 	var gold: int
 	var gem: int
 
-	static func from_json(d: Variant) -> Price:
-		if d == null:
-			return null
+	static func from_json(d: Variant, pe: Archmage.ParseError) -> Price:
+		if d is not Dictionary:
+			return J.o(d, "HandItemTable.Price", pe)
 		var x := Price.new()
-		x.gold = J.i(d.get("gold"))
-		x.gem = J.i(d.get("gem"))
+		x.gold = J.i(d.get("gold"), pe)
+		x.gem = J.i(d.get("gem"), pe)
 		return x
 
 	func to_json() -> Dictionary:
@@ -99,13 +95,13 @@ class EnchantsEntry extends RefCounted:
 
 	var _scroll_ref: int
 
-	static func from_json(d: Variant) -> EnchantsEntry:
-		if d == null:
-			return null
+	static func from_json(d: Variant, pe: Archmage.ParseError) -> EnchantsEntry:
+		if d is not Dictionary:
+			return J.o(d, "HandItemTable.EnchantsEntry", pe)
 		var x := EnchantsEntry.new()
-		x.element = J.i(d.get("element"))
-		x.bonus = J.i(d.get("bonus"))
-		x._scroll_ref = J.i(d.get("scroll"))
+		x.element = J.i(d.get("element"), pe)
+		x.bonus = J.i(d.get("bonus"), pe)
+		x._scroll_ref = J.i(d.get("scroll"), pe)
 		return x
 
 	func to_json() -> Dictionary:
@@ -137,10 +133,15 @@ func try_lookup(id: int) -> ItemCfg:
 
 func load_json(d: Variant) -> String:
 	entries.clear()
-	if d == null:
-		return ""
-	for k: String in d:
-		entries[int(k)] = ItemCfg.from_json(d[k])
+	var pe := Archmage.ParseError.new()
+	var m := J.m(d, pe)
+	for k: String in m:
+		entries[J.k(k, pe)] = ItemCfg.from_json(m[k], pe)
+		if pe.failed or pe.mismatched:
+			pe.at("[%s]" % k)
+			break
+	if pe.failed or pe.mismatched:
+		return pe.message_at("")
 	return ""
 
 

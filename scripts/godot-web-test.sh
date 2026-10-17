@@ -56,8 +56,10 @@ if [[ ! -x "$GODOT_STANDARD" ]]; then
 fi
 godot_version="$("$GODOT_STANDARD" --version | sed -E 's/\.[^.]+\.[^.]+$//')"
 templates_dir="$HOME/Library/Application Support/Godot/export_templates/$godot_version"
-if [[ ! -f "$templates_dir/web_nothreads_release.zip" ]]; then
-    printError "Web export templates $godot_version not found in $templates_dir."
+template=web_nothreads_release.zip
+$threads && template=web_release.zip
+if [[ ! -f "$templates_dir/$template" ]]; then
+    printError "Web export template $template of $godot_version not found in $templates_dir."
     exit 1
 fi
 

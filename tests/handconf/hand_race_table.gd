@@ -16,19 +16,15 @@ class RaceCfg extends RefCounted:
 
 	var _heroes_ref: Array[int] = []
 
-	static func from_json(d: Variant) -> RaceCfg:
-		if d == null:
-			return null
+	static func from_json(d: Variant, pe: Archmage.ParseError) -> RaceCfg:
+		if d is not Dictionary:
+			return J.o(d, "HandRaceTable.RaceCfg", pe)
 		var x := RaceCfg.new()
-		x.birthplace = J.s(d.get("birthplace"))
-		var a: Variant = d.get("heroes")
-		if a != null:
-			for e: Variant in a:
-				x._heroes_ref.append(J.i(e))
-		a = d.get("heroIds")
-		if a != null:
-			for e: Variant in a:
-				x.hero_ids.append(J.i(e))
+		x.birthplace = J.s(d.get("birthplace"), pe)
+		for e: Variant in J.a(d.get("heroes"), pe):
+			x._heroes_ref.append(J.i(e, pe))
+		for e: Variant in J.a(d.get("heroIds"), pe):
+			x.hero_ids.append(J.i(e, pe))
 		return x
 
 	func to_json() -> Dictionary:
@@ -68,10 +64,15 @@ func try_lookup(id: String) -> RaceCfg:
 
 func load_json(d: Variant) -> String:
 	entries.clear()
-	if d == null:
-		return ""
-	for k: String in d:
-		entries[k] = RaceCfg.from_json(d[k])
+	var pe := Archmage.ParseError.new()
+	var m := J.m(d, pe)
+	for k: String in m:
+		entries[k] = RaceCfg.from_json(m[k], pe)
+		if pe.failed or pe.mismatched:
+			pe.at("[%s]" % k)
+			break
+	if pe.failed or pe.mismatched:
+		return pe.message_at("")
 	return ""
 
 

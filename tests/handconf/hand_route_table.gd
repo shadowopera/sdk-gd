@@ -3,6 +3,8 @@
 class_name HandRouteTable
 extends RefCounted
 
+const J = preload("hand_json.gd")
+
 ## Maps a region ID to a Dictionary that maps a direction to an Array of Arrays of RegionCfg.
 var entries: Dictionary[String, Dictionary] = {}
 
@@ -12,10 +14,15 @@ var _entries_ref: Dictionary[String, Dictionary] = {}
 func load_json(d: Variant) -> String:
 	entries.clear()
 	_entries_ref.clear()
-	if d == null:
-		return ""
-	for k: String in d:
-		_entries_ref[k] = {} if d[k] == null else d[k]
+	var pe := Archmage.ParseError.new()
+	var m := J.m(d, pe)
+	for k: String in m:
+		_entries_ref[k] = {} if m[k] == null else J.m(m[k], pe)
+		if pe.failed or pe.mismatched:
+			pe.at("[%s]" % k)
+			break
+	if pe.failed or pe.mismatched:
+		return pe.message_at("")
 	return ""
 
 

@@ -11,6 +11,7 @@
 extends RefCounted
 
 const VersionInfo = preload("version_info.gd")
+const ParseError = preload("parse_error.gd")
 
 ## The [code]version[/code] object, or [code]null[/code] when atlas.json has none.
 var version: VersionInfo
@@ -37,7 +38,10 @@ func _load(d: Variant) -> String:
 	if v != null:
 		if not v is Dictionary:
 			return "$.version: expected an object"
-		version = VersionInfo.from_json(v)
+		var e := ParseError.new()
+		version = VersionInfo.from_json(v, e)
+		if e.failed:
+			return "$.version.timestamp: " + e.message
 
 	var u: Variant = d.get("unique")
 	if u != null:

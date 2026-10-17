@@ -36,24 +36,20 @@ class ItemCfg extends RefCounted:
 	var _best_owner_ref: int
 
 	static func from_json(_d: Variant, _e: Archmage.ParseError) -> ItemCfg:
-		if _d == null:
-			return null
+		if _d is not Dictionary:
+			return J.o(_d, "ItemTable.ItemCfg", _e)
 		var _x := ItemCfg.new()
-		_x.name = J.s(_d.get("name"))
-		_x.rarity = J.i(_d.get("rarity")) as SdkEnum.Rarity
+		_x.name = J.s(_d.get("name"), _e)
+		_x.rarity = J.i(_d.get("rarity"), _e) as SdkEnum.Rarity
 		_x.price = Price.from_json(_d.get("price"), _e)
 		_x.sell_price = Price.from_json(_d.get("sellPrice"), _e)
-		var _tags_json: Variant = _d.get("tags")
-		if _tags_json != null:
-			for _e1: Variant in _tags_json:
-				_x.tags.append(J.s(_e1))
-		_x.icon = J.s(_d.get("icon"))
-		_x.stackable = J.b(_d.get("stackable"))
-		_x._best_owner_ref = J.i(_d.get("bestOwner"))
-		var _enchants_json: Variant = _d.get("enchants")
-		if _enchants_json != null:
-			for _e1: Variant in _enchants_json:
-				_x.enchants.append(Item_EnchantsEntry.from_json(_e1, _e))
+		for _e1: Variant in J.a(_d.get("tags"), _e):
+			_x.tags.append(J.s(_e1, _e))
+		_x.icon = J.s(_d.get("icon"), _e)
+		_x.stackable = J.b(_d.get("stackable"), _e)
+		_x._best_owner_ref = J.i(_d.get("bestOwner"), _e)
+		for _e1: Variant in J.a(_d.get("enchants"), _e):
+			_x.enchants.append(Item_EnchantsEntry.from_json(_e1, _e))
 		return _x
 
 	func to_json() -> Dictionary:
@@ -93,11 +89,11 @@ class Price extends RefCounted:
 	var gem: int
 
 	static func from_json(_d: Variant, _e: Archmage.ParseError) -> Price:
-		if _d == null:
-			return null
+		if _d is not Dictionary:
+			return J.o(_d, "ItemTable.Price", _e)
 		var _x := Price.new()
-		_x.gold = J.i(_d.get("gold"))
-		_x.gem = J.i(_d.get("gem"))
+		_x.gold = J.i(_d.get("gold"), _e)
+		_x.gem = J.i(_d.get("gem"), _e)
 		return _x
 
 	func to_json() -> Dictionary:
@@ -119,12 +115,12 @@ class Item_EnchantsEntry extends RefCounted:
 	var _scroll_ref: int
 
 	static func from_json(_d: Variant, _e: Archmage.ParseError) -> Item_EnchantsEntry:
-		if _d == null:
-			return null
+		if _d is not Dictionary:
+			return J.o(_d, "ItemTable.Item_EnchantsEntry", _e)
 		var _x := Item_EnchantsEntry.new()
-		_x.element = J.i(_d.get("element")) as SdkEnum.Element
-		_x.bonus = J.i(_d.get("bonus"))
-		_x._scroll_ref = J.i(_d.get("scroll"))
+		_x.element = J.i(_d.get("element"), _e) as SdkEnum.Element
+		_x.bonus = J.i(_d.get("bonus"), _e)
+		_x._scroll_ref = J.i(_d.get("scroll"), _e)
 		return _x
 
 	func to_json() -> Dictionary:
@@ -181,11 +177,15 @@ func _iter_get(iter: Variant) -> Variant:
 func load_json(d: Variant) -> String:
 	_unbind_refs()
 	entries.clear()
-	if d == null:
-		return ""
 	var _e := Archmage.ParseError.new()
-	for _k1: String in d:
-		entries[int(_k1)] = ItemCfg.from_json(d[_k1], _e)
+	var _m1 := J.m(d, _e)
+	for _k1: String in _m1:
+		entries[J.k(_k1, _e)] = ItemCfg.from_json(_m1[_k1], _e)
+		if _e.failed or _e.mismatched:
+			_e.at("[%s]" % _k1)
+			break
+	if _e.failed or _e.mismatched:
+		return _e.message_at("")
 	return ""
 
 ## Sets the ID of each config entry from its key.

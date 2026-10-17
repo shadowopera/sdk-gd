@@ -52,10 +52,15 @@ var _key: String
 func _init(p_key := "") -> void:
 	_key = p_key
 
-## Converts [param v], the JSON value of an l10n field, to an L10n.
+## Converts [param v], the JSON value of an l10n field, to an L10n. A value that is not a string gives
+## [member EMPTY], and the type mismatch is recorded in [param _e] (see
+## [method Archmage.ParseError.report_mismatch]).
 static func from_json(v: Variant, _e: Archmage.ParseError = null) -> L10n:
-	var _k := "" if v == null else str(v)
-	return EMPTY if _k == "" else L10n.new(_k)
+	if v is String:
+		return EMPTY if v == "" else L10n.new(v)
+	if v != null:
+		Archmage.ParseError.report_mismatch(_e, "a string", v)
+	return EMPTY
 
 ## Returns the l10n key.
 func to_json() -> String:

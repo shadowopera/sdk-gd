@@ -22,50 +22,40 @@ var _level_rewards_ref: Dictionary[int, int] = {}
 
 
 func load_json(d: Variant) -> String:
-	if d == null:
-		d = {}
-	title = J.s(d.get("title"))
-	max_level = J.i(d.get("maxLevel"))
+	var pe := Archmage.ParseError.new()
+	d = J.m(d, pe)
+	title = J.s(d.get("title"), pe)
+	max_level = J.i(d.get("maxLevel"), pe)
 	start_hero = null
-	_start_hero_ref = J.i(d.get("startHero"))
-	bgm = J.s(d.get("bgm"))
+	_start_hero_ref = J.i(d.get("startHero"), pe)
+	bgm = J.s(d.get("bgm"), pe)
 	starter_items.clear()
 	_starter_items_ref.clear()
-	var a: Variant = d.get("starterItems")
-	if a != null:
-		for e: Variant in a:
-			_starter_items_ref.append(J.i(e))
+	for e: Variant in J.a(d.get("starterItems"), pe):
+		_starter_items_ref.append(J.i(e, pe))
 	allowed_classes.clear()
-	a = d.get("allowedClasses")
-	if a != null:
-		for e: Variant in a:
-			allowed_classes.append(J.i(e))
+	for e: Variant in J.a(d.get("allowedClasses"), pe):
+		allowed_classes.append(J.i(e, pe))
 	level_caps.clear()
-	a = d.get("levelCaps")
-	if a != null:
-		for e: Variant in a:
-			level_caps.append(J.i(e))
+	for e: Variant in J.a(d.get("levelCaps"), pe):
+		level_caps.append(J.i(e, pe))
 	banned_words.clear()
-	a = d.get("bannedWords")
-	if a != null:
-		for e: Variant in a:
-			banned_words.append(J.s(e))
+	for e: Variant in J.a(d.get("bannedWords"), pe):
+		banned_words.append(J.s(e, pe))
 	slot_sizes.clear()
-	a = d.get("slotSizes")
-	if a != null:
-		for e: Variant in a:
-			slot_sizes.append(J.i(e))
+	for e: Variant in J.a(d.get("slotSizes"), pe):
+		slot_sizes.append(J.i(e, pe))
 	level_rewards.clear()
 	_level_rewards_ref.clear()
-	var m: Variant = d.get("levelRewards")
-	if m != null:
-		for k: String in m:
-			_level_rewards_ref[int(k)] = J.i(m[k])
+	var m := J.m(d.get("levelRewards"), pe)
+	for k: String in m:
+		_level_rewards_ref[J.k(k, pe)] = J.i(m[k], pe)
 	features.clear()
-	m = d.get("features")
-	if m != null:
-		for k: String in m:
-			features[k] = J.b(m[k])
+	m = J.m(d.get("features"), pe)
+	for k: String in m:
+		features[k] = J.b(m[k], pe)
+	if pe.mismatched:
+		return pe.message_at("")
 	return ""
 
 

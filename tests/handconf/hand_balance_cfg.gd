@@ -12,17 +12,17 @@ var xp_curve: Array[int] = []
 
 
 func load_json(d: Variant) -> String:
-	if d == null:
-		d = {}
-	hp_scale = J.f(d.get("hpScale"))
-	dmg_scale = J.f(d.get("dmgScale"))
-	gold_bonus = J.f(d.get("goldBonus"))
-	enemy_level = J.i(d.get("enemyLevel"))
+	var pe := Archmage.ParseError.new()
+	d = J.m(d, pe)
+	hp_scale = J.f(d.get("hpScale"), pe)
+	dmg_scale = J.f(d.get("dmgScale"), pe)
+	gold_bonus = J.f(d.get("goldBonus"), pe)
+	enemy_level = J.i(d.get("enemyLevel"), pe)
 	xp_curve.clear()
-	var a: Variant = d.get("xpCurve")
-	if a != null:
-		for e: Variant in a:
-			xp_curve.append(J.i(e))
+	for e: Variant in J.a(d.get("xpCurve"), pe):
+		xp_curve.append(J.i(e, pe))
+	if pe.mismatched:
+		return pe.message_at("")
 	return ""
 
 

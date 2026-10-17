@@ -17,20 +17,39 @@
 ## [codeblock]
 ## var err := await loader.load_atlas_async("res://configs/atlas.json", "res://configs", atlas, opts)
 ## [/codeblock]
+## The [signal progress] signal reports the items loaded so far, such as for a loading screen:
+## [codeblock]
+## loader.progress.connect(_on_load_progress)
+##
+## func _on_load_progress(loaded: int, total: int, _key: String) -> void:
+##     progress_bar.max_value = total
+##     progress_bar.value = loaded
+## [/codeblock]
+## [method cancel] stops a running load before its next item. The load then returns [constant ERR_SKIP], and the
+## atlas is partly filled: do not use it.
+## [br][br]
 ## [method load_atlas] and [method load_atlas_async] return one of these codes:
 ## [br]- [constant OK] on success.
 ## [br]- [constant ERR_INVALID_PARAMETER]: an invalid option, such as an unknown key in the whitelist, an empty
 ## variant, or an override root that is not a directory.
 ## [br]- The code of the file system, such as [constant ERR_FILE_NOT_FOUND], when a file cannot be read.
 ## [br]- [constant ERR_PARSE_ERROR]: a file is not valid JSON, atlas.json does not have its expected shape, or the
-## [code]load_json[/code] of an item returned an error message, such as for an invalid duration.
+## [code]load_json[/code] of an item returned an error message: a value has the wrong JSON type, such as a string for
+## an int field, or a value is invalid, such as a duration.
 ## [br]- [constant ERR_DOES_NOT_EXIST]: atlas.json has no file for an item that is loaded.
 ## [br]- [constant ERR_INVALID_DATA]: a reference has no entry ([method Archmage.Atlas.bind_refs] failed), or an
 ## item has an unknown mapping.
 ## [br]- [constant FAILED]: [code]AtlasExtension.on_loaded()[/code] returned an error message.
 ## [br]- [constant ERR_BUSY]: another loader is loading the same atlas, or this loader has not finished an earlier
 ## load. In the second case, [method get_error_message] keeps the message of the earlier load.
+## [br]- [constant ERR_SKIP]: [method cancel] was called during the load.
 extends RefCounted
+
+## Emitted when the items to load are known, with [param loaded] 0 and an empty [param key], and after each item is
+## loaded, with the number of items loaded so far and the key of that item. [param total] is the number of items to
+## load, which does not include the items that the whitelist or the blacklist skips. [method load_atlas] emits it on
+## the calling thread, and [method load_atlas_async] on the main thread.
+signal progress(loaded: int, total: int, key: String)
 
 const Atlas = preload("atlas.gd")
 const AtlasItem = preload("atlas_item.gd")
@@ -156,6 +175,11 @@ class _ItemJob extends RefCounted:
 var _error_message := ""
 ## Whether a load of this loader is running.
 var _busy := false
+## Whether [method cancel] was called during the running load.
+var _cancel_requested := false
+## The number of items that the running load has loaded, and the number of items it loads, for [signal progress].
+var _loaded_count := 0
+var _total_count := 0
 ## Whether [method load_atlas_async] uses the WorkerThreadPool. Tests set it to [code]false[/code] to run the path
 ## for platforms without thread support.
 var _use_threads := OS.has_feature("threads")
@@ -175,6 +199,7 @@ func load_atlas(atlas_file: String, cfg_root: String, atlas: Atlas, options: Atl
 	if _busy:
 		return ERR_BUSY
 	_error_message = ""
+	_cancel_requested = false
 	if options == null:
 		options = AtlasOptions.new()
 	var err := _begin(atlas, options)
@@ -204,6 +229,7 @@ func load_atlas_async(atlas_file: String, cfg_root: String, atlas: Atlas, option
 	# Why a local reference? Without it, the load stops at its first await when the caller does not keep the loader.
 	var me := self
 	_error_message = ""
+	_cancel_requested = false
 	if options == null:
 		options = AtlasOptions.new()
 	var err := _begin(atlas, options)
@@ -221,6 +247,19 @@ func load_atlas_async(atlas_file: String, cfg_root: String, atlas: Atlas, option
 		err = me._on_loaded(atlas)
 	me._end(atlas)
 	return err
+
+
+## Stops the running load before it starts its next item, or before it resolves the references when all items are
+## loaded. The load then returns [constant ERR_SKIP], and [method get_error_message] returns
+## [code]<archmage> load canceled[/code]. [method load_atlas_async] still waits for the items that are being loaded
+## on worker threads. A canceled load does not call [method Archmage.Atlas.bind_refs] or
+## [method Archmage.Atlas.on_loaded], and the atlas is partly filled: do not use it.
+## [br][br]
+## Call it on the thread that runs the load: during [method load_atlas_async], on the main thread, such as from a
+## button; during [method load_atlas], from a handler of [signal progress]. It has no effect when no load is running.
+func cancel() -> void:
+	if _busy:
+		_cancel_requested = true
 
 
 ## Merges [param patch] into [param target] and returns the result. This is how the files of a
@@ -289,8 +328,11 @@ func _load_sync(atlas_file: String, cfg_root: String, atlas: Atlas, opts: AtlasO
 		return file_job.err
 	var keys := _keys_to_load(atlas, opts)
 	var items := atlas.atlas_items()
+	_start_progress(keys.size())
 	for k in keys:
-		var job := _new_item_job(k, items[k], atlas_json, atlas_file, cfg_root, opts, opts._override_configs)
+		if _cancel_requested:
+			return _canceled()
+		var job := _new_item_job(k, items[k], atlas_json, atlas_file, cfg_root, opts, opts._fs, opts._override_configs)
 		if job.err == OK:
 			job.run()
 		if not _finish_item(job, atlas_file, cfg_root, opts):
@@ -307,9 +349,12 @@ func _load_main_thread(atlas_file: String, cfg_root: String, atlas: Atlas, opts:
 		return file_job.err
 	var keys := _keys_to_load(atlas, opts)
 	var items := atlas.atlas_items()
+	_start_progress(keys.size())
 	for k in keys:
 		await tree.process_frame
-		var job := _new_item_job(k, items[k], atlas_json, atlas_file, cfg_root, opts, opts._override_configs)
+		if _cancel_requested:
+			return _canceled()
+		var job := _new_item_job(k, items[k], atlas_json, atlas_file, cfg_root, opts, opts._fs, opts._override_configs)
 		if job.err == OK:
 			job.run()
 		if not _finish_item(job, atlas_file, cfg_root, opts):
@@ -334,17 +379,18 @@ func _load_threaded(atlas_file: String, cfg_root: String, atlas: Atlas, opts: At
 		return file_job.err
 	var keys := _keys_to_load(atlas, opts)
 	var items := atlas.atlas_items()
+	_start_progress(keys.size())
 
-	# A sliding window of at most max_concurrency tasks. After the first failure, no task starts, and the running
-	# tasks are still waited for, because a task must not outlive the load.
+	# A sliding window of at most max_concurrency tasks. After the first failure or a cancel request, no task starts,
+	# and the running tasks are still waited for, because a task must not outlive the load.
 	var running: Array[_ItemJob] = []
 	var failed: _ItemJob = null
 	var next := 0
 	while true:
-		while failed == null and next < keys.size() and running.size() < max_concurrency:
+		while failed == null and not _cancel_requested and next < keys.size() and running.size() < max_concurrency:
 			var k := keys[next]
 			next += 1
-			var job := _new_item_job(k, items[k], atlas_json, atlas_file, cfg_root, opts, override_configs)
+			var job := _new_item_job(k, items[k], atlas_json, atlas_file, cfg_root, opts, fs, override_configs)
 			if job.err != OK:
 				_finish_item(job, atlas_file, cfg_root, opts)
 				failed = job
@@ -363,7 +409,7 @@ func _load_threaded(atlas_file: String, cfg_root: String, atlas: Atlas, opts: At
 			WorkerThreadPool.wait_for_task_completion(job.task_id)
 			running.remove_at(i)
 			finished += 1
-			if failed == null:
+			if failed == null and not _cancel_requested:
 				if not _finish_item(job, atlas_file, cfg_root, opts):
 					failed = job
 		if finished == 0:
@@ -425,10 +471,12 @@ func _keys_to_load(atlas: Atlas, opts: AtlasOptions) -> Array[String]:
 	return keys
 
 
-## Creates the job of one item and finds its files. When the files cannot be found, the job has the error.
+## Creates the job of one item and finds its files. When the files cannot be found, the job has the error. The job
+## reads the files with [param fs] and [param override_configs] instead of the options, which the caller may change
+## during an asynchronous load.
 static func _new_item_job(key: String, item: AtlasItem, atlas_json: AtlasJson, atlas_file: String, cfg_root: String,
-		opts: AtlasOptions, override_configs: Array[AtlasOptions.OverrideConfig]) -> _ItemJob:
-	var job := _ItemJob.new(item, key, cfg_root, opts._fs, override_configs)
+		opts: AtlasOptions, fs: FS, override_configs: Array[AtlasOptions.OverrideConfig]) -> _ItemJob:
+	var job := _ItemJob.new(item, key, cfg_root, fs, override_configs)
 	item.key = key
 	var key_path := ""
 	match item.mapping:
@@ -476,10 +524,21 @@ func _finish_item(job: _ItemJob, atlas_file: String, cfg_root: String, opts: Atl
 	opts._logger.info("<archmage> Loaded atlas item \"%s\" (%s) from %s%s in %dms"
 			% [job.key, mapping, ", ".join(job.paths), supplement, job.msec])
 	item.ready = true
+	_loaded_count += 1
+	progress.emit(_loaded_count, _total_count, job.key)
 	return true
 
 
+## Emits the first [signal progress] of a load that loads [param total] items.
+func _start_progress(total: int) -> void:
+	_loaded_count = 0
+	_total_count = total
+	progress.emit(0, total, "")
+
+
 func _bind_refs(atlas: Atlas, count: int, start: int, opts: AtlasOptions) -> Error:
+	if _cancel_requested:
+		return _canceled()
 	var msg := atlas.bind_refs()
 	if msg != "":
 		return _fail(ERR_INVALID_DATA, "<archmage> failed to bind refs | " + msg)
@@ -490,6 +549,10 @@ func _bind_refs(atlas: Atlas, count: int, start: int, opts: AtlasOptions) -> Err
 func _fail(err: Error, message: String) -> Error:
 	_error_message = message
 	return err
+
+
+func _canceled() -> Error:
+	return _fail(ERR_SKIP, "<archmage> load canceled")
 
 
 static func _skip_cause(key: String, opts: AtlasOptions) -> String:

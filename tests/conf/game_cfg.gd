@@ -61,12 +61,11 @@ var _level_rewards_ref: Dictionary[int, int] = {}
 
 func load_json(_d: Variant) -> String:
 	_unbind_refs()
-	if _d == null:
-		_d = {}
 	var _e := Archmage.ParseError.new()
-	title = L10n.from_json(_d.get("title"))
-	max_level = J.i(_d.get("maxLevel"))
-	_start_hero_ref = J.i(_d.get("startHero"))
+	_d = J.m(_d, _e)
+	title = L10n.from_json(_d.get("title"), _e)
+	max_level = J.i(_d.get("maxLevel"), _e)
+	_start_hero_ref = J.i(_d.get("startHero"), _e)
 	tick_rate = Archmage.Duration.from_json(_d.get("tickRate"), _e)
 	if _e.failed:
 		return _e.message_at(".tickRate")
@@ -76,75 +75,61 @@ func load_json(_d: Variant) -> String:
 	launch_date = Archmage.DateTime.from_json(_d.get("launchDate"), _e)
 	if _e.failed:
 		return _e.message_at(".launchDate")
-	bgm = J.s(_d.get("bgm"))
+	bgm = J.s(_d.get("bgm"), _e)
 	_starter_items_ref.clear()
-	var _starter_items_json: Variant = _d.get("starterItems")
-	if _starter_items_json != null:
-		for _e1: Variant in _starter_items_json:
-			_starter_items_ref.append(J.i(_e1))
+	for _e1: Variant in J.a(_d.get("starterItems"), _e):
+		_starter_items_ref.append(J.i(_e1, _e))
 	daily_resets.clear()
-	var _daily_resets_json: Variant = _d.get("dailyResets")
-	if _daily_resets_json != null:
-		for _e1: Variant in _daily_resets_json:
-			daily_resets.append(Archmage.Duration.from_json(_e1, _e))
-			if _e.failed:
-				_e.at("[%d]" % (daily_resets.size() - 1))
-				break
+	for _e1: Variant in J.a(_d.get("dailyResets"), _e):
+		daily_resets.append(Archmage.Duration.from_json(_e1, _e))
+		if _e.failed:
+			_e.at("[%d]" % (daily_resets.size() - 1))
+			break
 	if _e.failed:
 		return _e.message_at(".dailyResets")
 	allowed_classes.clear()
-	var _allowed_classes_json: Variant = _d.get("allowedClasses")
-	if _allowed_classes_json != null:
-		for _e1: Variant in _allowed_classes_json:
-			allowed_classes.append(J.i(_e1) as SdkEnum.HeroClass)
+	for _e1: Variant in J.a(_d.get("allowedClasses"), _e):
+		allowed_classes.append(J.i(_e1, _e) as SdkEnum.HeroClass)
 	level_caps.clear()
-	var _level_caps_json: Variant = _d.get("levelCaps")
-	if _level_caps_json != null:
-		for _e1: Variant in _level_caps_json:
-			level_caps.append(J.i(_e1))
+	for _e1: Variant in J.a(_d.get("levelCaps"), _e):
+		level_caps.append(J.i(_e1, _e))
 	banned_words.clear()
-	var _banned_words_json: Variant = _d.get("bannedWords")
-	if _banned_words_json != null:
-		for _e1: Variant in _banned_words_json:
-			banned_words.append(J.s(_e1))
+	for _e1: Variant in J.a(_d.get("bannedWords"), _e):
+		banned_words.append(J.s(_e1, _e))
 	slot_sizes.clear()
-	var _slot_sizes_json: Variant = _d.get("slotSizes")
-	if _slot_sizes_json != null:
-		for _e1: Variant in _slot_sizes_json:
-			slot_sizes.append(J.i(_e1))
+	for _e1: Variant in J.a(_d.get("slotSizes"), _e):
+		slot_sizes.append(J.i(_e1, _e))
 	_level_rewards_ref.clear()
-	var _level_rewards_json: Variant = _d.get("levelRewards")
-	if _level_rewards_json != null:
-		for _k1: String in _level_rewards_json:
-			_level_rewards_ref[int(_k1)] = J.i(_level_rewards_json[_k1])
+	var _level_rewards_json := J.m(_d.get("levelRewards"), _e)
+	for _k1: String in _level_rewards_json:
+		_level_rewards_ref[J.k(_k1, _e)] = J.i(_level_rewards_json[_k1], _e)
 	tips.clear()
-	var _tips_json: Variant = _d.get("tips")
-	if _tips_json != null:
-		for _k1: String in _tips_json:
-			tips[_k1] = L10n.from_json(_tips_json[_k1])
+	var _tips_json := J.m(_d.get("tips"), _e)
+	for _k1: String in _tips_json:
+		tips[_k1] = L10n.from_json(_tips_json[_k1], _e)
 	class_colors.clear()
-	var _class_colors_json: Variant = _d.get("classColors")
-	if _class_colors_json != null:
-		for _k1: String in _class_colors_json:
-			class_colors[int(_k1) as SdkEnum.HeroClass] = Archmage.Rgba.from_json(_class_colors_json[_k1], _e)
-			if _e.failed:
-				_e.at("[%s]" % _k1)
-				break
+	var _class_colors_json := J.m(_d.get("classColors"), _e)
+	for _k1: String in _class_colors_json:
+		class_colors[J.k(_k1, _e) as SdkEnum.HeroClass] = Archmage.Rgba.from_json(_class_colors_json[_k1], _e)
+		if _e.failed:
+			_e.at("[%s]" % _k1)
+			break
 	if _e.failed:
 		return _e.message_at(".classColors")
 	features.clear()
-	var _features_json: Variant = _d.get("features")
-	if _features_json != null:
-		for _k1: String in _features_json:
-			features[_k1] = J.b(_features_json[_k1])
+	var _features_json := J.m(_d.get("features"), _e)
+	for _k1: String in _features_json:
+		features[_k1] = J.b(_features_json[_k1], _e)
 	motd = Archmage.Tuple.from_json(_d.get("motd"), [J.s], _e)
 	boss_spawn = Archmage.Tuple.from_json(_d.get("bossSpawn"), [J.i, J.i, Archmage.Duration.from_json, J.i, J.f, J.b, J.s], _e, [0])
 	if _e.failed:
 		return _e.message_at(".bossSpawn")
-	camera_offset = J.v3(_d.get("cameraOffset"))
-	grid_size = J.v2i(_d.get("gridSize"))
-	tint = J.v4(_d.get("tint"))
-	world_bounds = J.v4i(_d.get("worldBounds"))
+	camera_offset = J.v3(_d.get("cameraOffset"), _e)
+	grid_size = J.v2i(_d.get("gridSize"), _e)
+	tint = J.v4(_d.get("tint"), _e)
+	world_bounds = J.v4i(_d.get("worldBounds"), _e)
+	if _e.mismatched:
+		return _e.message_at("")
 	return ""
 
 func to_json() -> Dictionary:

@@ -23,7 +23,7 @@ generated GDScript classes, resolves cross-table references, and calls post-load
 - **Variants** — switch an atlas item to use an alternative data set at load time via `with_variant`
 - **Whitelist/Blacklist** — load only a subset of atlas items
 - **Layered overrides** — merge files with matching relative paths from additional override sources (a directory path or a custom file system) into the base configs, field by field, at load time
-- **Synchronous and asynchronous loading** — `await load_atlas_async()` loads atlas items in parallel on the `WorkerThreadPool`, and also works in Web exports without thread support
+- **Synchronous and asynchronous loading** — `await load_atlas_async()` loads atlas items in parallel on the `WorkerThreadPool`, and also works in Web exports without thread support; the `progress` signal and `cancel()` serve a loading screen
 - **Pluggable file system** — load from `res://`, `user://`, memory, or any other source via `Archmage.FS`
 - **Versioning** — VCS metadata (branch, commit, timestamp, etc.), when present in `atlas.json`, is available on the loaded atlas
 - **Editor plugin** — Inspector dropdowns for config ID properties, populated from the loaded atlas, for easy selection
@@ -153,6 +153,23 @@ func reload_configs() -> void:
 	atlas = new_atlas
 ```
 
+The `progress(loaded: int, total: int, key: String)` signal of the loader reports the atlas items loaded so far, for example for a loading screen. It is emitted once with `loaded` 0 when the atlas items to load are known, and once after each atlas item is loaded. `total` does not include the atlas items that the whitelist or the blacklist skips. `load_atlas_async` emits it on the main thread.
+
+```gdscript
+loader.progress.connect(_on_load_progress)
+
+func _on_load_progress(loaded: int, total: int, key: String) -> void:
+	progress_bar.max_value = total
+	progress_bar.value = loaded
+```
+
+`cancel()` stops a running load before its next atlas item. `load_atlas_async` still waits for the atlas items that worker threads are loading. A canceled load returns `ERR_SKIP` without resolving the references or calling `on_loaded`, and the atlas is partly filled, so do not use it. During `load_atlas`, call `cancel()` from a `progress` handler.
+
+```gdscript
+func _on_cancel_pressed() -> void:
+	loader.cancel()  # the pending load_atlas_async returns ERR_SKIP
+```
+
 When an atlas is freed, it sets the ref fields of all its config entries to `null`, so that config entries that reference each other can be freed. A config entry that your code still holds stays valid, but its ref fields are `null`. Keep the atlas, for example in an autoload, for as long as you use its config entries, and look up the config entries again after a reload.
 
 ### Error Codes
@@ -161,11 +178,12 @@ When an atlas is freed, it sets the ref fields of all its config entries to `nul
 |---|---|
 | `ERR_INVALID_PARAMETER` | An invalid option, such as an unknown key in the whitelist, an empty variant, or an override root that is not a directory |
 | The code of the file system, such as `ERR_FILE_NOT_FOUND` | A file cannot be read |
-| `ERR_PARSE_ERROR` | A file is not valid JSON, `atlas.json` does not have its expected shape, or a value is invalid, such as a duration |
+| `ERR_PARSE_ERROR` | A file is not valid JSON, `atlas.json` does not have its expected shape, a value has the wrong JSON type, such as a string for an int field, or a value is invalid, such as a duration |
 | `ERR_DOES_NOT_EXIST` | `atlas.json` has no file for an atlas item that is loaded |
 | `ERR_INVALID_DATA` | A non-zero ID has no config entry, or an atlas item has an unknown mapping |
 | `FAILED` | `AtlasExtension.on_loaded()` returned an error message |
 | `ERR_BUSY` | Another loader is loading the same atlas, or this loader has not finished an earlier load |
+| `ERR_SKIP` | `cancel()` was called during the load |
 
 ## Options
 
@@ -236,7 +254,7 @@ Notes for `Archmage.FS` implementations:
 
 - `read_file` returns the content as a `PackedByteArray`, or an `Error` code. It must return `ERR_FILE_NOT_FOUND` when the file does not exist: a missing override file is skipped only with this code.
 - `file_exists` and `dir_exists` return `true` unless overridden. Keep that default when an exact check is expensive.
-- `load_atlas_async` calls `read_file` and `file_exists` on worker threads, several at a time, so they must be safe to call that way. `dir_exists` runs on the thread that starts the load.
+- `load_atlas_async` calls `read_file` and `file_exists` on worker threads, several at a time, so they must be safe to call that way. Protect any state that the calls share, such as one `ZIPReader` used for all reads, with a `Mutex`. `dir_exists` runs on the thread that starts the load.
 
 ## Special Types
 
@@ -267,6 +285,8 @@ A vector field whose elements are `float32` is a `Vector2`, `Vector3` or `Vector
 ### WeightedPool
 
 `Archmage.WeightedPool` holds parallel `items` and `weights` arrays. `sample()` and `sample_index()` draw an item (or its index) at random with probability proportional to its weight; `sample_with(value)` maps a value from 0 to 1 to an item, so that the same value always gives the same item. When the pool is empty or its total weight is not from 1 to 1,000,000,000, they report an error and return `null` or `-1`.
+
+`duplicate()` returns a shallow copy of the pool with its own `items` and `weights` arrays, for code that changes the weights at run time without changing the config entry. The items themselves, such as config entries, are shared.
 
 The sampling methods of `MinMax` and `WeightedPool` take an optional `RandomNumberGenerator`; without it, they use the global random number generator.
 
@@ -363,15 +383,16 @@ for lang: String in all_texts:
 ```gdscript
 var ver := atlas.data_version  # Archmage.VersionInfo, null if not present
 if ver != null:
-	print(ver.branch)    # "main"
-	print(ver.short_id)  # "a1b2c3d"
+	print(ver.branch)               # "main"
+	print(ver.short_id)             # "a1b2c3d"
+	print(ver.timestamp.to_json())  # "2025-01-01T00:00:00Z"; timestamp is an Archmage.DateTime
 ```
 
 `ConfigAtlas.code_version()` returns the version info that the code was generated from, or `null`. Comparing the two reveals any version difference between code and data.
 
 ## Limits
 
-Godot parses every JSON number as a 64-bit `float`. An integer whose absolute value is above 2^53 (9007199254740992) loses precision, and a `uint64` value above the `int64` range cannot be represented.
+Godot parses every JSON number as a 64-bit `float`. An integer whose absolute value is above 2^53 (9007199254740992) loses precision, and a `uint64` value above the `int64` range cannot be represented. A number in an integer field is converted with `int()`; the load does not check that it is a whole number or within the range of the field type.
 
 ## See Also
 

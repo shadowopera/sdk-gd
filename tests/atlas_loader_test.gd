@@ -135,7 +135,8 @@ func test_data_version() -> void:
 	check_eq(v.branch, "main", "branch")
 	check_eq(v.semver, "", "semver")
 	check_eq(v.short_id, "7f3a2b9", "short_id")
-	check_eq(v.timestamp, "2025-02-09T10:23:45Z", "timestamp")
+	check_eq(v.timestamp.unix_time, 1739096625, "timestamp")
+	check_eq(v.to_json()["timestamp"], "2025-02-09T10:23:45Z", "to_json timestamp")
 	check_eq(v.tags, [] as Array[String], "tags")
 	check_eq(v.status.size(), 1, "status size")
 
@@ -391,6 +392,13 @@ func test_invalid_atlas_json() -> void:
 	check(msg.ends_with(" at line 1"), msg)
 
 
+func test_invalid_version_timestamp() -> void:
+	for text: String in ["\"2025-02-09\"", "1739096625"]:
+		var fs := MemoryFS.new({"atlas.json": "{\"version\": {\"branch\": \"main\", \"timestamp\": %s}}" % text})
+		var msg := load_fail(opts().with_fs(fs), ERR_PARSE_ERROR, "atlas.json", "")
+		check_eq(msg, "<archmage> invalid \"atlas.json\" | $.version.timestamp: invalid RFC 3339 time " + text)
+
+
 func test_invalid_atlas_shape() -> void:
 	for text: String in ["[]", "{\"unique\":[]}", "{\"unique\":{\"a\":1}}", "{\"variant\":{\"a\":\"x\"}}",
 			"{\"many\":{\"a\":\"x\"}}", "{\"many\":{\"a\":[1]}}", "{\"version\":\"v1\"}"]:
@@ -411,6 +419,24 @@ func test_invalid_config_json() -> void:
 	var msg := load_fail(opts().with_fs(fs).with_whitelist(["item"]), ERR_PARSE_ERROR, "atlas.json", "")
 	check_prefix(msg, "<archmage> failed to load atlas item \"item\". atlasFile: atlas.json, cfgRoot:  | " +
 			"failed to parse \"item.json\" | ")
+
+
+func test_type_mismatch() -> void:
+	# [file, override, error message]
+	var cases := [
+		["hero.json", "{\"1\": {\"hp\": \"abc\"}}", "hero[1]: expected a number, got \"abc\""],
+		["hero.json", "{\"1\": {\"stats\": [1]}}", "hero[1]: HandHeroTable.Stats: expected an object, got an array"],
+		["hero.json", "{\"x\": {}}", "hero[x]: expected an integer key, got \"x\""],
+		["hero.json", "[]", "hero: expected an object, got an array"],
+		["game.json", "{\"starterItems\": {}}", "game: expected an array, got an object"],
+		["game.json", "5", "game: expected an object, got 5"],
+		["chapter.json", "[{}, \"x\"]", "chapter[1]: HandChapterArray.ChapterCfg: expected an object, got \"x\""],
+		["route.json", "{\"Camelot\": []}", "route[Camelot]: expected an object, got an array"],
+	]
+	for c: Array in cases:
+		var fs := MemoryFS.new({c[0]: c[1]})
+		var msg := load_fail(opts().with_blacklist(["balance"]).with_override_fs(fs), ERR_PARSE_ERROR)
+		check(msg.ends_with(" | " + c[2]), "%s %s: %s" % [c[0], c[1], msg])
 
 
 func test_invalid_override_json() -> void:
@@ -763,3 +789,109 @@ func test_async_drop_atlas_frees_entries() -> void:
 		await (Engine.get_main_loop() as SceneTree).process_frame
 		var alive := ids.filter(func(id: int) -> bool: return is_instance_id_valid(id))
 		check_eq(alive.size(), 0, "objects alive after the atlas is dropped (threaded: %s)" % threaded)
+
+
+## The [signal Archmage.AtlasLoader.progress] signals of the current test, each as [code][loaded, total, key][/code].
+var progress_events: Array = []
+## Whether every progress signal was emitted on the main thread.
+var progress_on_main_thread := true
+## When not negative, the progress handler calls cancel() when this number of items is loaded.
+var cancel_at := -1
+
+
+func _on_progress(loaded: int, total: int, key: String) -> void:
+	progress_events.append([loaded, total, key])
+	if OS.get_thread_caller_id() != OS.get_main_thread_id():
+		progress_on_main_thread = false
+	if loaded == cancel_at:
+		loader.cancel()
+
+
+func test_progress() -> void:
+	loader.progress.connect(_on_progress)
+	load_ok(opts().with_whitelist(["skill", "hero", "Race", "item"]))
+	check_eq(progress_events, [[0, 4, ""], [1, 4, "hero"], [2, 4, "item"], [3, 4, "Race"], [4, 4, "skill"]], "progress")
+	check(progress_on_main_thread, "progress is emitted on the main thread")
+
+
+func test_progress_async() -> void:
+	loader.progress.connect(_on_progress)
+	for threaded: bool in [true, false]:
+		progress_events.clear()
+		await load_ok_async(opts().with_whitelist(["skill", "hero", "Race", "item"]), threaded)
+		check_eq(progress_events.size(), 5, "progress signals (threaded: %s)" % threaded)
+		if progress_events.size() != 5:
+			continue
+		check_eq(progress_events[0], [0, 4, ""], "the first progress signal")
+		var keys := []
+		for i in range(1, 5):
+			check_eq(progress_events[i].slice(0, 2), [i, 4], "progress signal %d (threaded: %s)" % [i, threaded])
+			keys.append(progress_events[i][2])
+		keys.sort()
+		check_eq(keys, ["Race", "hero", "item", "skill"], "the keys of the progress signals (threaded: %s)" % threaded)
+	check(progress_on_main_thread, "progress is emitted on the main thread")
+
+
+## Returns the keys of the items of [param atlas] that are loaded.
+func ready_keys(atlas: HandConfigAtlas) -> Array:
+	var items := atlas.atlas_items()
+	return items.keys().filter(func(k: String) -> bool: return items[k].ready)
+
+
+func test_cancel_from_progress_handler() -> void:
+	loader.progress.connect(_on_progress)
+	# [cancel_at, the items that are loaded]
+	for c: Array in [[0, []], [2, ["chapter", "game"]], [8, ["chapter", "game", "hero", "item", "Race", "Region", "route", "skill"]]]:
+		cancel_at = c[0]
+		progress_events.clear()
+		var atlas := HandConfigAtlas.new()
+		check_eq(loader.load_atlas(ATLAS, CFG_ROOT, atlas, opts().with_blacklist(["balance"])), ERR_SKIP,
+				"canceled at %d" % c[0])
+		check_eq(loader.get_error_message(), "<archmage> load canceled")
+		check_eq(progress_events.size(), c[0] + 1, "progress signals (canceled at %d)" % c[0])
+		var loaded := ready_keys(atlas)
+		loaded.sort_custom(func(a: String, b: String) -> bool: return a.to_lower() < b.to_lower())
+		check_eq(loaded, c[1], "loaded items (canceled at %d)" % c[0])
+		check_eq(atlas.extension.loaded_count, 0, "on_loaded calls (canceled at %d)" % c[0])
+		if c[0] == 8:
+			check(atlas.hero_table.lookup(1).weapon == null, "bind_refs is skipped")
+	# The next load clears the request.
+	cancel_at = -1
+	load_ok(opts().with_blacklist(["balance"]))
+
+
+func test_cancel_without_load() -> void:
+	loader.cancel()
+	check(not loader._cancel_requested, "cancel() without a load has no effect")
+	check_golden(load_ok(opts().with_blacklist(["balance"])), "basic")
+
+
+func test_cancel_async() -> void:
+	loader.progress.connect(_on_progress)
+	var tree := Engine.get_main_loop() as SceneTree
+	for threaded: bool in [true, false]:
+		progress_events.clear()
+		_background_load_err = -1
+		var fs := ProbeFS.new()
+		# Why a delay? cancel() must come while the second item is being loaded, a frame or more after the first.
+		fs.delay_msec = 100
+		var atlas := HandConfigAtlas.new()
+		loader._use_threads = threaded and OS.has_feature("threads")
+		var o := opts().with_fs(fs).with_blacklist(["balance"]).with_max_concurrency(1)
+		# Why call_deferred? GDScript does not let a function start a coroutine without awaiting it.
+		_background_load.call_deferred(loader, atlas, o)
+		for i in 600:
+			if progress_events.size() >= 2:
+				break
+			await tree.process_frame
+		check_eq(progress_events.size(), 2, "progress signals before cancel() (threaded: %s)" % threaded)
+		loader.cancel()
+		if _background_load_err == -1:
+			await _background_load_done
+		check_eq(_background_load_err, ERR_SKIP, "canceled load (threaded: %s)" % threaded)
+		check_eq(loader.get_error_message(), "<archmage> load canceled")
+		check_eq(ready_keys(atlas), ["chapter"], "loaded items (threaded: %s)" % threaded)
+		check_eq(progress_events.size(), 2, "progress signals (threaded: %s)" % threaded)
+		check_eq(atlas.extension.loaded_count, 0, "on_loaded calls (threaded: %s)" % threaded)
+		check(not fs.paths.has("res://tests/testdata/hero.json"), "hero.json is not read: %s" % [fs.paths])
+		check(not loader._busy, "the loader is not busy")

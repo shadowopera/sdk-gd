@@ -86,3 +86,18 @@ func test_sample_duration() -> void:
 	for i in 1000:
 		seen[mm.sample(rng).nanoseconds] = true
 	check_eq(seen.keys().size(), 3, "1, 2 and 3 ms are drawn")
+
+
+func test_type_mismatch() -> void:
+	var e := Archmage.ParseError.new()
+	var mm := MinMax.from_json([1], to_int, e)
+	check_eq([mm.min, mm.max], [0, 0], "the bounds of a value that is not an object")
+	check(not e.failed, "a type mismatch is not an invalid value")
+	check_eq(e.message_at(""), ": Archmage.MinMax: expected an object, got an array")
+
+	capture_errors()
+	MinMax.from_json(5, to_int)
+	var errors := take_errors()
+	check_eq(errors.size(), 1, "errors without a ParseError")
+	if errors.size() == 1:
+		check(errors[0].contains("<archmage> Archmage.MinMax: expected an object, got 5"), errors[0])

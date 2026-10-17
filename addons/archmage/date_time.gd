@@ -10,7 +10,8 @@ const ParseError = preload("parse_error.gd")
 ## The Unix time of the instant at [code]0001-01-01T00:00:00Z[/code].
 const ZERO_UNIX_TIME := -62135596800
 
-static var _rfc3339: RegEx
+static var _rfc3339 := RegEx.create_from_string(
+		"^(\\d{4})-(\\d{2})-(\\d{2})T(\\d{2}):(\\d{2}):(\\d{2})(?:\\.(\\d{1,9})\\d*)?(?:(Z)|([+-])(\\d{2}):(\\d{2}))$")
 
 ## The seconds since [code]1970-01-01T00:00:00Z[/code], the value that [method Time.get_unix_time_from_system]
 ## returns.
@@ -34,9 +35,6 @@ static func from_json(v: Variant, e: ParseError = null) -> DateTime:
 	var t := DateTime.new()
 	if v == null:
 		return t
-	if _rfc3339 == null:
-		_rfc3339 = RegEx.create_from_string(
-				"^(\\d{4})-(\\d{2})-(\\d{2})T(\\d{2}):(\\d{2}):(\\d{2})(?:\\.(\\d{1,9})\\d*)?(?:(Z)|([+-])(\\d{2}):(\\d{2}))$")
 	var m: RegExMatch = _rfc3339.search(v) if v is String else null
 	if m != null:
 		var year := m.get_string(1).to_int()
@@ -57,9 +55,9 @@ static func from_json(v: Variant, e: ParseError = null) -> DateTime:
 	return DateTime.new()
 
 
+@warning_ignore_start("integer_division")
 ## Returns the datetime as an RFC 3339 string with [member offset], or [code]null[/code] for the zero value. The
 ## fraction of a second is written only when it is not zero, and the offset 0 is written as [code]Z[/code].
-@warning_ignore("integer_division")
 func to_json() -> Variant:
 	if is_zero():
 		return null
@@ -83,7 +81,6 @@ static func _days_in_month(year: int, month: int) -> int:
 
 
 # The days since 1970-01-01 of a date in the proleptic Gregorian calendar (Howard Hinnant's days_from_civil).
-@warning_ignore("integer_division")
 static func _days_from_civil(y: int, m: int, d: int) -> int:
 	if m <= 2:
 		y -= 1
@@ -95,7 +92,6 @@ static func _days_from_civil(y: int, m: int, d: int) -> int:
 
 
 # The inverse of _days_from_civil: [year, month, day].
-@warning_ignore("integer_division")
 static func _civil_from_days(z: int) -> Array[int]:
 	z += 719468
 	var era := (z if z >= 0 else z - 146096) / 146097
@@ -106,3 +102,4 @@ static func _civil_from_days(z: int) -> Array[int]:
 	var d := doy - (153 * mp + 2) / 5 + 1
 	var m := mp + 3 if mp < 10 else mp - 9
 	return [yoe + era * 400 + (1 if m <= 2 else 0), m, d]
+@warning_ignore_restore("integer_division")

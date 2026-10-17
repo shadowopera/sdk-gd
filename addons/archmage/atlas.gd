@@ -27,6 +27,7 @@ const VersionInfo = preload("version_info.gd")
 # but a call through a Callable still reaches it.
 var _unbind_refs_callable: Callable = unbind_refs
 ## Whether a loader is loading this atlas. [Archmage.AtlasLoader] sets it.
+@warning_ignore("unused_private_class_variable")
 var _loading := false
 
 

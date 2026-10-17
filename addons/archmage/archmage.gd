@@ -38,7 +38,7 @@ const VersionInfo = preload("version_info.gd")
 const WeightedPool = preload("weighted_pool.gd")
 
 ## Matches the control characters that have no short escape in JSON.
-static var _control_chars: RegEx
+static var _control_chars := RegEx.create_from_string("[\\x00-\\x1f]")
 
 
 ## Returns [param value] as canonical JSON: object keys sorted, one tab per indent level, and a trailing newline.
@@ -165,38 +165,36 @@ static func _format_float(x: float) -> String:
 	# num_scientific gives the shortest digits that parse back to x, such as "1e-07" or "1.2345678901234568e+17".
 	# Lay them out as Go does (ECMAScript Number.prototype.toString): "1e-7", "123456789012345680".
 	var t := String.num_scientific(absf(x))
-	var exp := 0
+	var exponent := 0
 	var e := t.find("e")
 	if e >= 0:
-		exp = t.substr(e + 1).to_int()
+		exponent = t.substr(e + 1).to_int()
 		t = t.substr(0, e)
 	var dot := t.find(".")
 	var digits := t.replace(".", "")
 	# The value is 0.<digits> * 10^n.
-	var n := (dot if dot >= 0 else t.length()) + exp
+	var n := (dot if dot >= 0 else t.length()) + exponent
 	var lead := 0
 	while digits[lead] == "0":
 		lead += 1
 	digits = digits.substr(lead).rstrip("0")
 	n -= lead
 	var k := digits.length()
-	var sign := "-" if x < 0 else ""
+	var minus := "-" if x < 0 else ""
 	if k <= n and n <= 21:
-		return sign + digits + "0".repeat(n - k)
+		return minus + digits + "0".repeat(n - k)
 	if 0 < n and n <= 21:
-		return sign + digits.substr(0, n) + "." + digits.substr(n)
+		return minus + digits.substr(0, n) + "." + digits.substr(n)
 	if -6 < n and n <= 0:
-		return sign + "0." + "0".repeat(-n) + digits
+		return minus + "0." + "0".repeat(-n) + digits
 	var mantissa := digits[0] + ("." + digits.substr(1) if k > 1 else "")
-	return sign + mantissa + ("e+" if n >= 1 else "e-") + str(absi(n - 1))
+	return minus + mantissa + ("e+" if n >= 1 else "e-") + str(absi(n - 1))
 
 
 static func _quote(s: String) -> String:
 	# Not String.json_escape(): it writes \v, which is not valid JSON.
 	var escaped := s.replace("\\", "\\\\").replace("\"", "\\\"").replace("\n", "\\n").replace("\r", "\\r") \
 			.replace("\t", "\\t").replace("\b", "\\b").replace("\f", "\\f")
-	if _control_chars == null:
-		_control_chars = RegEx.create_from_string("[\\x00-\\x1f]")
 	var m := _control_chars.search(escaped)
 	if m == null:
 		return "\"" + escaped + "\""

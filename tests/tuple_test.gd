@@ -32,3 +32,9 @@ func test_refs() -> void:
 	t._unbind_refs()
 	check_eq(t.items, [2, null], "items after _unbind_refs")
 	check_eq(t.to_json(), {"item0": 2, "item1": "Human"}, "to_json after _unbind_refs")
+
+
+func test_type_mismatch() -> void:
+	var e := Archmage.ParseError.new()
+	check(Archmage.Tuple.from_json("x", [to_int], e) == null, "a value that is not an object")
+	check_eq(e.mismatch_message, "Archmage.Tuple: expected an object, got \"x\"")

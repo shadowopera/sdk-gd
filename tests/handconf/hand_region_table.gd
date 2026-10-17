@@ -16,16 +16,14 @@ class RegionCfg extends RefCounted:
 
 	var _neighbors_ref: Array[String] = []
 
-	static func from_json(d: Variant) -> RegionCfg:
-		if d == null:
-			return null
+	static func from_json(d: Variant, pe: Archmage.ParseError) -> RegionCfg:
+		if d is not Dictionary:
+			return J.o(d, "HandRegionTable.RegionCfg", pe)
 		var x := RegionCfg.new()
-		x.name = J.s(d.get("name"))
-		x.climate = J.s(d.get("climate"))
-		var a: Variant = d.get("neighbors")
-		if a != null:
-			for e: Variant in a:
-				x._neighbors_ref.append(J.s(e))
+		x.name = J.s(d.get("name"), pe)
+		x.climate = J.s(d.get("climate"), pe)
+		for e: Variant in J.a(d.get("neighbors"), pe):
+			x._neighbors_ref.append(J.s(e, pe))
 		return x
 
 	func to_json() -> Dictionary:
@@ -65,10 +63,15 @@ func try_lookup(id: String) -> RegionCfg:
 
 func load_json(d: Variant) -> String:
 	entries.clear()
-	if d == null:
-		return ""
-	for k: String in d:
-		entries[k] = RegionCfg.from_json(d[k])
+	var pe := Archmage.ParseError.new()
+	var m := J.m(d, pe)
+	for k: String in m:
+		entries[k] = RegionCfg.from_json(m[k], pe)
+		if pe.failed or pe.mismatched:
+			pe.at("[%s]" % k)
+			break
+	if pe.failed or pe.mismatched:
+		return pe.message_at("")
 	return ""
 
 

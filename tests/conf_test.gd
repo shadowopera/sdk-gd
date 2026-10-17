@@ -123,6 +123,7 @@ func test_basic() -> void:
 
 	check_eq(atlas.data_version.semver, "v1.0.0", "data_version.semver")
 	check_eq(ConfigAtlas.code_version().short_id, "7f3a2b9", "code_version")
+	check_eq(ConfigAtlas.code_version().timestamp.to_json(), "2025-02-09T10:23:45Z", "code_version timestamp")
 	var items := atlas.atlas_items()
 	check(not items["balance"].ready, "balance is skipped")
 	for k in ["chapter", "drop", "game", "hero", "item", "monster", "Race", "Region", "route", "skill"]:
@@ -335,6 +336,63 @@ func test_parse_failure() -> void:
 		var fs := MemoryFS.new({c[0]: c[1]})
 		var msg := load_fail(opts().with_blacklist(["balance"]).with_override_fs(fs), ERR_PARSE_ERROR)
 		check(msg.ends_with(" | " + c[2]), "%s: %s" % [c[0], msg])
+
+
+func test_type_mismatch() -> void:
+	# [file, override, error message]
+	var cases := [
+		["hero.json", "{\"1\": {\"hp\": \"abc\"}}", "hero[1]: expected a number, got \"abc\""],
+		["hero.json", "{\"1\": {\"critRate\": true}}", "hero[1]: expected a number, got true"],
+		["hero.json", "{\"1\": {\"title\": 5}}", "hero[1]: expected a string, got 5"],
+		["hero.json", "{\"1\": {\"playable\": \"false\"}}", "hero[1]: expected a boolean, got \"false\""],
+		["hero.json", "{\"1\": {\"name\": 7}}", "hero[1]: expected a string, got 7"],
+		["hero.json", "{\"1\": {\"class\": \"mage\"}}", "hero[1]: expected a number, got \"mage\""],
+		["hero.json", "{\"1\": {\"weapon\": \"101\"}}", "hero[1]: expected a number, got \"101\""],
+		["hero.json", "{\"1\": {\"stats\": 5}}", "hero[1]: HeroTable.Stats: expected an object, got 5"],
+		["hero.json", "{\"1\": {\"talents\": {\"a\": 1}}}", "hero[1]: expected an array, got an object"],
+		["hero.json", "{\"1\": {\"talents\": [3]}}", "hero[1]: HeroTable.Hero_TalentsEntry: expected an object, got 3"],
+		["hero.json", "{\"1\": {\"spawnPos\": [1, 2, 3]}}", "hero[1]: Vector3i: expected an object, got an array"],
+		["hero.json", "{\"1\": {\"facing\": {\"x\": \"1\"}}}", "hero[1]: expected a number, got \"1\""],
+		["hero.json", "{\"abc\": {}}", "hero[abc]: expected an integer key, got \"abc\""],
+		["hero.json", "[1]", "hero: expected an object, got an array"],
+		["vtbl/skill-magic.json", "{\"heal\": {\"buffs\": [1]}}", "skill[heal]: expected an object, got an array"],
+		["monster.json", "{\"1003\": {\"resist\": {\"fire\": 1}}}", "monster[1003]: expected an integer key, got \"fire\""],
+		["route.json", "{\"Camelot\": {\"north\": 5}}", "route[Camelot]: expected an array, got 5"],
+		["drop.json", "{\"1\": {\"gold\": 5}}", "drop[1]: Archmage.MinMax: expected an object, got 5"],
+		["drop.json", "{\"1\": {\"gold\": {\"min\": \"1\"}}}", "drop[1]: expected a number, got \"1\""],
+		["drop.json", "{\"1\": {\"coins\": [1]}}", "drop[1]: Archmage.WeightedPool: expected an object, got an array"],
+		["drop.json", "{\"1\": {\"coins\": {\"items\": 1}}}", "drop[1]: Archmage.WeightedPool.items: expected an array, got 1"],
+		["drop.json", "{\"1\": {\"coins\": {\"weights\": [\"x\"]}}}",
+				"drop[1]: Archmage.WeightedPool.weights: expected a number, got \"x\""],
+		["game.json", "[]", "game: expected an object, got an array"],
+		["game.json", "{\"motd\": \"hi\"}", "game: Archmage.Tuple: expected an object, got \"hi\""],
+		["game.json", "{\"bossSpawn\": {\"item5\": 1}}", "game: expected a boolean, got 1"],
+		["game.json", "{\"levelRewards\": {\"x\": 101}}", "game: expected an integer key, got \"x\""],
+		["game.json", "{\"tips\": [\"a\"]}", "game: expected an object, got an array"],
+		["game.json", "{\"tint\": 1}", "game: Vector4: expected an object, got 1"],
+		["chapter.json", "{\"a\": 1}", "chapter: expected an array, got an object"],
+		["chapter.json", "[5]", "chapter[0]: ChapterArray.ChapterCfg: expected an object, got 5"],
+		["chapter.json", "[{}, {\"waves\": [\"1\"]}]", "chapter[1]: expected a number, got \"1\""],
+		# A value error is reported with its path, whether a type mismatch comes before it or after it.
+		["hero.json", "{\"3\": {\"hp\": \"abc\", \"respawn\": \"abc\"}}", "hero[3].respawn: invalid duration \"abc\""],
+		["hero.json", "{\"3\": {\"respawn\": \"abc\", \"playable\": 1}}", "hero[3].respawn: invalid duration \"abc\""],
+		["game.json", "{\"maxLevel\": \"x\", \"tickRate\": [5, 1]}", "game.tickRate: invalid duration shards [5,1]"],
+		["game.json", "{\"tickRate\": [5, 1], \"bgm\": 5}", "game.tickRate: invalid duration shards [5,1]"],
+	]
+	for c: Array in cases:
+		var fs := MemoryFS.new({c[0]: c[1]})
+		var msg := load_fail(opts().with_blacklist(["balance"]).with_override_fs(fs), ERR_PARSE_ERROR)
+		check(msg.ends_with(" | " + c[2]), "%s %s: %s" % [c[0], c[1], msg])
+
+
+func test_type_mismatch_async() -> void:
+	var fs := MemoryFS.new({"hero.json": "{\"2\": {\"stats\": {\"hp\": [1]}}}"})
+	var o := opts().with_blacklist(["balance"]).with_override_fs(fs)
+	for threaded: bool in [true, false]:
+		loader._use_threads = threaded and OS.has_feature("threads")
+		var err := await loader.load_atlas_async(ATLAS, CFG_ROOT, ConfigAtlas.new(), o)
+		check_eq(err, ERR_PARSE_ERROR, "load_atlas_async (threaded: %s)" % threaded)
+		check(loader.get_error_message().ends_with(" | hero[2]: expected a number, got an array"), loader.get_error_message())
 
 
 ## Adds the instance ID of each object in [param value] to [param ids], following [code]to_json()[/code], which

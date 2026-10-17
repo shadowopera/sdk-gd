@@ -26,27 +26,22 @@ class MonsterCfg extends RefCounted:
 	var _habitat_ref: String
 
 	static func from_json(_d: Variant, _e: Archmage.ParseError) -> MonsterCfg:
-		if _d == null:
-			return null
+		if _d is not Dictionary:
+			return J.o(_d, "MonsterTable.MonsterCfg", _e)
 		var _x := MonsterCfg.new()
-		_x.name = J.s(_d.get("name"))
-		_x._habitat_ref = J.s(_d.get("habitat"))
-		var _resist_json: Variant = _d.get("resist")
-		if _resist_json != null:
-			for _k1: String in _resist_json:
-				_x.resist[int(_k1) as SdkEnum.Element] = J.i(_resist_json[_k1])
-		var _size_json: Variant = _d.get("size")
-		if _size_json != null:
-			for _e1: Variant in _size_json:
-				_x.size.append(J.f(_e1))
-		_x.speed = J.v2(_d.get("speed"))
+		_x.name = J.s(_d.get("name"), _e)
+		_x._habitat_ref = J.s(_d.get("habitat"), _e)
+		var _resist_json := J.m(_d.get("resist"), _e)
+		for _k1: String in _resist_json:
+			_x.resist[J.k(_k1, _e) as SdkEnum.Element] = J.i(_resist_json[_k1], _e)
+		for _e1: Variant in J.a(_d.get("size"), _e):
+			_x.size.append(J.f(_e1, _e))
+		_x.speed = J.v2(_d.get("speed"), _e)
 		_x.aggro = Archmage.MinMax.from_json(_d.get("aggro"), J.f, _e)
 		_x.loot = Archmage.WeightedPool.from_json(_d.get("loot"), J.i, _e, true)
 		_x.stats = Monster_Stats.from_json(_d.get("stats"), _e)
-		var _phases_json: Variant = _d.get("phases")
-		if _phases_json != null:
-			for _e1: Variant in _phases_json:
-				_x.phases.append(Monster_PhasesEntry.from_json(_e1, _e))
+		for _e1: Variant in J.a(_d.get("phases"), _e):
+			_x.phases.append(Monster_PhasesEntry.from_json(_e1, _e))
 		return _x
 
 	func to_json() -> Dictionary:
@@ -95,11 +90,11 @@ class Monster_Stats extends RefCounted:
 	var atk: float
 
 	static func from_json(_d: Variant, _e: Archmage.ParseError) -> Monster_Stats:
-		if _d == null:
-			return null
+		if _d is not Dictionary:
+			return J.o(_d, "MonsterTable.Monster_Stats", _e)
 		var _x := Monster_Stats.new()
-		_x.hp = J.i(_d.get("hp"))
-		_x.atk = J.f(_d.get("atk"))
+		_x.hp = J.i(_d.get("hp"), _e)
+		_x.atk = J.f(_d.get("atk"), _e)
 		return _x
 
 	func to_json() -> Dictionary:
@@ -118,12 +113,12 @@ class Monster_PhasesEntry extends RefCounted:
 	var _cast_ref: String
 
 	static func from_json(_d: Variant, _e: Archmage.ParseError) -> Monster_PhasesEntry:
-		if _d == null:
-			return null
+		if _d is not Dictionary:
+			return J.o(_d, "MonsterTable.Monster_PhasesEntry", _e)
 		var _x := Monster_PhasesEntry.new()
-		_x.hp_below = J.i(_d.get("hpBelow"))
-		_x._summon_ref = J.i(_d.get("summon"))
-		_x._cast_ref = J.s(_d.get("cast"))
+		_x.hp_below = J.i(_d.get("hpBelow"), _e)
+		_x._summon_ref = J.i(_d.get("summon"), _e)
+		_x._cast_ref = J.s(_d.get("cast"), _e)
 		return _x
 
 	func to_json() -> Dictionary:
@@ -185,11 +180,15 @@ func _iter_get(iter: Variant) -> Variant:
 func load_json(d: Variant) -> String:
 	_unbind_refs()
 	entries.clear()
-	if d == null:
-		return ""
 	var _e := Archmage.ParseError.new()
-	for _k1: String in d:
-		entries[int(_k1)] = MonsterCfg.from_json(d[_k1], _e)
+	var _m1 := J.m(d, _e)
+	for _k1: String in _m1:
+		entries[J.k(_k1, _e)] = MonsterCfg.from_json(_m1[_k1], _e)
+		if _e.failed or _e.mismatched:
+			_e.at("[%s]" % _k1)
+			break
+	if _e.failed or _e.mismatched:
+		return _e.message_at("")
 	return ""
 
 ## Sets the ID of each config entry from its key.

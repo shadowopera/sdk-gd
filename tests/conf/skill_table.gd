@@ -31,27 +31,26 @@ class SkillCfg extends RefCounted:
 	var radius: float
 
 	static func from_json(_d: Variant, _e: Archmage.ParseError) -> SkillCfg:
-		if _d == null:
-			return null
+		if _d is not Dictionary:
+			return J.o(_d, "SkillTable.SkillCfg", _e)
 		var _x := SkillCfg.new()
-		_x.name = J.s(_d.get("name"))
+		_x.name = J.s(_d.get("name"), _e)
 		_x.cooldown = Archmage.Duration.from_json(_d.get("cooldown"), _e)
 		if _e.failed:
 			return _e.at(".cooldown")
-		_x.mana = J.i(_d.get("mana"))
-		_x.school = J.i(_d.get("school")) as SdkEnum.Element
-		_x.src = J.s(_d.get("src"))
+		_x.mana = J.i(_d.get("mana"), _e)
+		_x.school = J.i(_d.get("school"), _e) as SdkEnum.Element
+		_x.src = J.s(_d.get("src"), _e)
 		_x.damage = Archmage.MinMax.from_json(_d.get("damage"), J.i, _e)
-		var _buffs_json: Variant = _d.get("buffs")
-		if _buffs_json != null:
-			for _k1: String in _buffs_json:
-				_x.buffs[_k1] = Skill_BuffsEntry.from_json(_buffs_json[_k1], _e)
-				if _e.failed:
-					_e.at("[%s]" % _k1)
-					break
+		var _buffs_json := J.m(_d.get("buffs"), _e)
+		for _k1: String in _buffs_json:
+			_x.buffs[_k1] = Skill_BuffsEntry.from_json(_buffs_json[_k1], _e)
+			if _e.failed:
+				_e.at("[%s]" % _k1)
+				break
 		if _e.failed:
 			return _e.at(".buffs")
-		_x.radius = J.f(_d.get("radius"))
+		_x.radius = J.f(_d.get("radius"), _e)
 		return _x
 
 	func to_json() -> Dictionary:
@@ -92,14 +91,14 @@ class Skill_BuffsEntry extends RefCounted:
 	var _source_ref: int
 
 	static func from_json(_d: Variant, _e: Archmage.ParseError) -> Skill_BuffsEntry:
-		if _d == null:
-			return null
+		if _d is not Dictionary:
+			return J.o(_d, "SkillTable.Skill_BuffsEntry", _e)
 		var _x := Skill_BuffsEntry.new()
-		_x.stacks = J.i(_d.get("stacks"))
+		_x.stacks = J.i(_d.get("stacks"), _e)
 		_x.time = Archmage.Duration.from_json(_d.get("time"), _e)
 		if _e.failed:
 			return _e.at(".time")
-		_x._source_ref = J.i(_d.get("source"))
+		_x._source_ref = J.i(_d.get("source"), _e)
 		return _x
 
 	func to_json() -> Dictionary:
@@ -156,15 +155,14 @@ func _iter_get(iter: Variant) -> Variant:
 func load_json(d: Variant) -> String:
 	_unbind_refs()
 	entries.clear()
-	if d == null:
-		return ""
 	var _e := Archmage.ParseError.new()
-	for _k1: String in d:
-		entries[_k1] = SkillCfg.from_json(d[_k1], _e)
-		if _e.failed:
+	var _m1 := J.m(d, _e)
+	for _k1: String in _m1:
+		entries[_k1] = SkillCfg.from_json(_m1[_k1], _e)
+		if _e.failed or _e.mismatched:
 			_e.at("[%s]" % _k1)
 			break
-	if _e.failed:
+	if _e.failed or _e.mismatched:
 		return _e.message_at("")
 	return ""
 

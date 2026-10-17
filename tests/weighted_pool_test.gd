@@ -112,3 +112,38 @@ func test_sample_with() -> void:
 		if wp.sample_index_with(i / 1000.0) == 1:
 			check(false, "an item with zero weight was drawn for %s" % (i / 1000.0))
 			break
+
+
+func test_type_mismatch() -> void:
+	var cases := [
+		[[1], "Archmage.WeightedPool: expected an object, got an array"],
+		[{"items": {}}, "Archmage.WeightedPool.items: expected an array, got an object"],
+		[{"weights": 3}, "Archmage.WeightedPool.weights: expected an array, got 3"],
+		[{"items": [1, 2], "weights": [1, "2"]}, "Archmage.WeightedPool.weights: expected a number, got \"2\""],
+	]
+	for c: Array in cases:
+		var e := Archmage.ParseError.new()
+		WeightedPool.from_json(c[0], to_int, e)
+		check(e.mismatched and not e.failed, "%s is a type mismatch" % [c[0]])
+		check_eq(e.mismatch_message, c[1])
+
+
+func test_duplicate() -> void:
+	var a := Item.new()
+	var b := Item.new()
+	var wp := make([a, b], [3, 1])
+	var copy := wp.duplicate()
+	check(copy != wp, "a new pool")
+	check(copy.items[0] == a and copy.items[1] == b, "the items are shared")
+	check_eq(copy.weights, [3, 1] as Array[int], "weights")
+	copy.weights[0] = 0
+	copy.items.append(Item.new())
+	check_eq(wp.weights, [3, 1] as Array[int], "the weights of the original")
+	check_eq(wp.items.size(), 2, "the items of the original")
+
+	var refs := WeightedPool.from_json({"items": [103.0, 104.0], "weights": [5.0, 1.0]}, to_int, null, true)
+	refs.items[0] = a
+	var refs_copy := refs.duplicate()
+	refs._unbind_refs()
+	check(refs_copy.items[0] == a, "unbinding the original does not change the copy")
+	check_eq(refs_copy.to_json(), {"items": [103, 104], "weights": [5, 1] as Array[int]}, "to_json of the copy")

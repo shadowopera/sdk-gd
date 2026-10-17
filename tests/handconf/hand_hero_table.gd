@@ -30,29 +30,27 @@ class HeroCfg extends RefCounted:
 	var _weapon_ref: int
 	var _race_ref: String
 
-	static func from_json(d: Variant) -> HeroCfg:
-		if d == null:
-			return null
+	static func from_json(d: Variant, pe: Archmage.ParseError) -> HeroCfg:
+		if d is not Dictionary:
+			return J.o(d, "HandHeroTable.HeroCfg", pe)
 		var x := HeroCfg.new()
-		x.name = J.s(d.get("name"))
-		x.title = J.s(d.get("title"))
-		x.class_ = J.i(d.get("class"))
-		x.level = J.i(d.get("level"))
-		x.hp = J.i(d.get("hp"))
-		x.gold = J.i(d.get("gold"))
-		x.exp = J.i(d.get("exp"))
-		x.crit_rate = J.f(d.get("critRate"))
-		x.dodge = J.f(d.get("dodge"))
-		x.stats = Stats.from_json(d.get("stats"))
-		x.growth = Stats.from_json(d.get("growth"))
-		x.playable = J.b(d.get("playable"))
-		x._weapon_ref = J.i(d.get("weapon"))
-		x.weapon_id = J.i(d.get("weaponId"))
-		x._race_ref = J.s(d.get("race"))
-		var a: Variant = d.get("talents")
-		if a != null:
-			for e: Variant in a:
-				x.talents.append(TalentsEntry.from_json(e))
+		x.name = J.s(d.get("name"), pe)
+		x.title = J.s(d.get("title"), pe)
+		x.class_ = J.i(d.get("class"), pe)
+		x.level = J.i(d.get("level"), pe)
+		x.hp = J.i(d.get("hp"), pe)
+		x.gold = J.i(d.get("gold"), pe)
+		x.exp = J.i(d.get("exp"), pe)
+		x.crit_rate = J.f(d.get("critRate"), pe)
+		x.dodge = J.f(d.get("dodge"), pe)
+		x.stats = Stats.from_json(d.get("stats"), pe)
+		x.growth = Stats.from_json(d.get("growth"), pe)
+		x.playable = J.b(d.get("playable"), pe)
+		x._weapon_ref = J.i(d.get("weapon"), pe)
+		x.weapon_id = J.i(d.get("weaponId"), pe)
+		x._race_ref = J.s(d.get("race"), pe)
+		for e: Variant in J.a(d.get("talents"), pe):
+			x.talents.append(TalentsEntry.from_json(e, pe))
 		return x
 
 	func to_json() -> Dictionary:
@@ -104,12 +102,12 @@ class Stats extends RefCounted:
 	var hp: int
 	var atk: float
 
-	static func from_json(d: Variant) -> Stats:
-		if d == null:
-			return null
+	static func from_json(d: Variant, pe: Archmage.ParseError) -> Stats:
+		if d is not Dictionary:
+			return J.o(d, "HandHeroTable.Stats", pe)
 		var x := Stats.new()
-		x.hp = J.i(d.get("hp"))
-		x.atk = J.f(d.get("atk"))
+		x.hp = J.i(d.get("hp"), pe)
+		x.atk = J.f(d.get("atk"), pe)
 		return x
 
 	func to_json() -> Dictionary:
@@ -122,12 +120,12 @@ class TalentsEntry extends RefCounted:
 
 	var _skill_ref: String
 
-	static func from_json(d: Variant) -> TalentsEntry:
-		if d == null:
-			return null
+	static func from_json(d: Variant, pe: Archmage.ParseError) -> TalentsEntry:
+		if d is not Dictionary:
+			return J.o(d, "HandHeroTable.TalentsEntry", pe)
 		var x := TalentsEntry.new()
-		x._skill_ref = J.s(d.get("skill"))
-		x.tier = J.i(d.get("tier"))
+		x._skill_ref = J.s(d.get("skill"), pe)
+		x.tier = J.i(d.get("tier"), pe)
 		return x
 
 	func to_json() -> Dictionary:
@@ -170,10 +168,15 @@ func size() -> int:
 
 func load_json(d: Variant) -> String:
 	entries.clear()
-	if d == null:
-		return ""
-	for k: String in d:
-		entries[int(k)] = HeroCfg.from_json(d[k])
+	var pe := Archmage.ParseError.new()
+	var m := J.m(d, pe)
+	for k: String in m:
+		entries[J.k(k, pe)] = HeroCfg.from_json(m[k], pe)
+		if pe.failed or pe.mismatched:
+			pe.at("[%s]" % k)
+			break
+	if pe.failed or pe.mismatched:
+		return pe.message_at("")
 	return ""
 
 

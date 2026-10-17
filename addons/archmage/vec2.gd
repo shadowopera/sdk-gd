@@ -4,6 +4,7 @@
 extends RefCounted
 
 const Vec2 = preload("vec2.gd")
+const ParseError = preload("parse_error.gd")
 
 ## An [int] or a [float], as the element type of the field.
 var x: Variant
@@ -11,14 +12,18 @@ var x: Variant
 var y: Variant
 
 
-## Returns the vector in [param d], a parsed JSON object, converting each element with [param conv], which returns
-## the zero value for [code]null[/code]. [code]null[/code] gives the zero vector.
-static func from_json(d: Variant, conv: Callable) -> Vec2:
+## Returns the vector in [param d], a parsed JSON object, converting each element with
+## [code]conv.call(value, e)[/code], which returns the zero value for [code]null[/code]. [code]null[/code] gives the
+## zero vector. Any other value that is not an object gives the zero vector too, and the type mismatch is recorded in
+## [param e] (see [method Archmage.ParseError.report_mismatch]).
+static func from_json(d: Variant, conv: Callable, e: ParseError = null) -> Vec2:
 	var v := Vec2.new()
-	if d == null:
+	if d is not Dictionary:
+		if d != null:
+			ParseError.report_mismatch(e, "an object", d, "Archmage.Vec2")
 		d = {}
-	v.x = conv.call(d.get("x"))
-	v.y = conv.call(d.get("y"))
+	v.x = conv.call(d.get("x"), e)
+	v.y = conv.call(d.get("y"), e)
 	return v
 
 

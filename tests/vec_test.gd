@@ -33,3 +33,10 @@ func test_canonicalize_godot_vectors_and_colors() -> void:
 	var want := Archmage.canonicalize([{"x": 0.5, "y": -7}, {"x": 1, "y": 2, "z": 3}, {"x": 1, "y": 0.25, "z": 0, "w": -1},
 			"#102030"])
 	check_eq(got, want)
+
+
+func test_type_mismatch() -> void:
+	var e := Archmage.ParseError.new()
+	var v := Archmage.Vec3.from_json("1,2,3", to_int, e)
+	check_eq(v.to_json(), {"x": 0, "y": 0, "z": 0}, "the zero vector")
+	check_eq(e.mismatch_message, "Archmage.Vec3: expected an object, got \"1,2,3\"")

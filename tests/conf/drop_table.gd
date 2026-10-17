@@ -33,10 +33,10 @@ class DropCfg extends RefCounted:
 	var buff_time: Archmage.WeightedPool
 
 	static func from_json(_d: Variant, _e: Archmage.ParseError) -> DropCfg:
-		if _d == null:
-			return null
+		if _d is not Dictionary:
+			return J.o(_d, "DropTable.DropCfg", _e)
 		var _x := DropCfg.new()
-		_x.name = J.s(_d.get("name"))
+		_x.name = J.s(_d.get("name"), _e)
 		_x.gold = Archmage.MinMax.from_json(_d.get("gold"), J.i, _e)
 		_x.bonus_rate = Archmage.MinMax.from_json(_d.get("bonusRate"), J.f, _e)
 		_x.despawn = Archmage.MinMax.from_json(_d.get("despawn"), Archmage.Duration.from_json, _e)
@@ -115,15 +115,14 @@ func _iter_get(iter: Variant) -> Variant:
 func load_json(d: Variant) -> String:
 	_unbind_refs()
 	entries.clear()
-	if d == null:
-		return ""
 	var _e := Archmage.ParseError.new()
-	for _k1: String in d:
-		entries[int(_k1)] = DropCfg.from_json(d[_k1], _e)
-		if _e.failed:
+	var _m1 := J.m(d, _e)
+	for _k1: String in _m1:
+		entries[J.k(_k1, _e)] = DropCfg.from_json(_m1[_k1], _e)
+		if _e.failed or _e.mismatched:
 			_e.at("[%s]" % _k1)
 			break
-	if _e.failed:
+	if _e.failed or _e.mismatched:
 		return _e.message_at("")
 	return ""
 

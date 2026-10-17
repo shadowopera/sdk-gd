@@ -28,7 +28,7 @@ static func from_json(v: Variant, e: ParseError = null) -> Duration:
 		var a: Array = v
 		if a.is_empty():
 			return Duration.new()
-		if a.all(func(e: Variant) -> bool: return e is float or e is int):
+		if a.all(func(x: Variant) -> bool: return x is float or x is int):
 			var unit := int(a[0])
 			if a.size() == 2 and unit >= 0 and unit <= 3:
 				return Duration.new(int(a[1]) * _UNIT_NANOSECONDS[unit])
@@ -38,8 +38,8 @@ static func from_json(v: Variant, e: ParseError = null) -> Duration:
 	return Duration.new()
 
 
+@warning_ignore_start("integer_division")
 ## Returns the duration in the format of the config files.
-@warning_ignore("integer_division")
 func to_json() -> Variant:
 	var ns := nanoseconds
 	if ns == 0:
@@ -62,6 +62,6 @@ func to_seconds() -> float:
 
 
 ## Returns the duration in whole milliseconds, truncated toward zero.
-@warning_ignore("integer_division")
 func to_milliseconds() -> int:
 	return nanoseconds / 1_000_000
+@warning_ignore_restore("integer_division")

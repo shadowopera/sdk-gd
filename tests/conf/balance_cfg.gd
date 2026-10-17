@@ -22,21 +22,20 @@ var spawn_interval: Archmage.Duration
 var xp_curve: Array[int] = []
 
 func load_json(_d: Variant) -> String:
-	if _d == null:
-		_d = {}
 	var _e := Archmage.ParseError.new()
-	hp_scale = J.f(_d.get("hpScale"))
-	dmg_scale = J.f(_d.get("dmgScale"))
-	gold_bonus = J.f(_d.get("goldBonus"))
-	enemy_level = J.i(_d.get("enemyLevel"))
+	_d = J.m(_d, _e)
+	hp_scale = J.f(_d.get("hpScale"), _e)
+	dmg_scale = J.f(_d.get("dmgScale"), _e)
+	gold_bonus = J.f(_d.get("goldBonus"), _e)
+	enemy_level = J.i(_d.get("enemyLevel"), _e)
 	spawn_interval = Archmage.Duration.from_json(_d.get("spawnInterval"), _e)
 	if _e.failed:
 		return _e.message_at(".spawnInterval")
 	xp_curve.clear()
-	var _xp_curve_json: Variant = _d.get("xpCurve")
-	if _xp_curve_json != null:
-		for _e1: Variant in _xp_curve_json:
-			xp_curve.append(J.i(_e1))
+	for _e1: Variant in J.a(_d.get("xpCurve"), _e):
+		xp_curve.append(J.i(_e1, _e))
+	if _e.mismatched:
+		return _e.message_at("")
 	return ""
 
 func to_json() -> Dictionary:

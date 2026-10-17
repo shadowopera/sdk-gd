@@ -17,21 +17,17 @@ class ChapterCfg extends RefCounted:
 
 	var _hero_ref: int
 
-	static func from_json(d: Variant) -> ChapterCfg:
-		if d == null:
-			return null
+	static func from_json(d: Variant, pe: Archmage.ParseError) -> ChapterCfg:
+		if d is not Dictionary:
+			return J.o(d, "HandChapterArray.ChapterCfg", pe)
 		var x := ChapterCfg.new()
-		x.id = J.s(d.get("id"))
-		x.title = J.s(d.get("title"))
-		x._hero_ref = J.i(d.get("hero"))
-		var a: Variant = d.get("recommended")
-		if a != null:
-			for e: Variant in a:
-				x.recommended.append(J.i(e))
-		a = d.get("waves")
-		if a != null:
-			for e: Variant in a:
-				x.waves.append(J.i(e))
+		x.id = J.s(d.get("id"), pe)
+		x.title = J.s(d.get("title"), pe)
+		x._hero_ref = J.i(d.get("hero"), pe)
+		for e: Variant in J.a(d.get("recommended"), pe):
+			x.recommended.append(J.i(e, pe))
+		for e: Variant in J.a(d.get("waves"), pe):
+			x.waves.append(J.i(e, pe))
 		return x
 
 	func to_json() -> Dictionary:
@@ -56,10 +52,14 @@ class ChapterCfg extends RefCounted:
 
 func load_json(d: Variant) -> String:
 	entries.clear()
-	if d == null:
-		return ""
-	for e: Variant in d:
-		entries.append(ChapterCfg.from_json(e))
+	var pe := Archmage.ParseError.new()
+	for e: Variant in J.a(d, pe):
+		entries.append(ChapterCfg.from_json(e, pe))
+		if pe.failed or pe.mismatched:
+			pe.at("[%d]" % (entries.size() - 1))
+			break
+	if pe.failed or pe.mismatched:
+		return pe.message_at("")
 	return ""
 
 

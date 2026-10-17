@@ -15,10 +15,14 @@ var max: Variant
 
 ## Returns the range in [param d], a parsed JSON object, converting each bound with [code]conv.call(value, e)[/code],
 ## which returns the zero value for [code]null[/code]. [code]null[/code] gives a range whose bounds are zero. When
-## [param conv] records an error in [param e], returns [code]null[/code].
+## [param conv] records an error in [param e], returns [code]null[/code]. Any other value that is not an object gives
+## the same range as [code]null[/code], and the type mismatch is recorded in [param e] (see
+## [method Archmage.ParseError.report_mismatch]).
 static func from_json(d: Variant, conv: Callable, e: ParseError = null) -> MinMax:
 	var mm := MinMax.new()
-	if d == null:
+	if d is not Dictionary:
+		if d != null:
+			ParseError.report_mismatch(e, "an object", d, "Archmage.MinMax")
 		d = {}
 	mm.min = conv.call(d.get("min"), e)
 	if e != null and e.failed:
@@ -34,11 +38,11 @@ func to_json() -> Dictionary:
 	return {"min": min, "max": max}
 
 
+@warning_ignore_start("integer_division")
 ## Returns a random value from [member min] to [member max], both included, drawn uniformly with [param rng], or with
 ## the global random number generator, which [method @GlobalScope.seed] affects, when [param rng] is
 ## [code]null[/code]. An [Archmage.Duration] is drawn in whole milliseconds: the bounds are truncated to milliseconds,
 ## and every value returned is a whole number of milliseconds.
-@warning_ignore("integer_division")
 func sample(rng: RandomNumberGenerator = null) -> Variant:
 	if min is Duration:
 		var lo: int = min.nanoseconds / 1_000_000
@@ -48,6 +52,7 @@ func sample(rng: RandomNumberGenerator = null) -> Variant:
 		return min + _rand_int(rng, max - min)
 	var r := rng.randf() if rng != null else randf()
 	return min + r * (max - min)
+@warning_ignore_restore("integer_division")
 
 
 ## Returns a random integer from 0 to [param span], both included.

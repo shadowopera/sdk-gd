@@ -23,20 +23,35 @@ var _ref_ids: Array = []
 ## or [code]null[/code] when [param d] is [code]null[/code]. When [param conv] records an error in [param e], returns
 ## [code]null[/code]. When [param refs] is true, the converted items are config IDs: they go to [member _ref_ids],
 ## and [member items] holds [code]null[/code] for each of them until the generated code resolves them.
+## [br][br]
+## When [param d] is not an object, [code]items[/code] or [code]weights[/code] is not an array, or a weight is not a
+## number, the type mismatch is recorded in [param e] (see [method Archmage.ParseError.report_mismatch]). The value
+## of the wrong type is then treated as [code]null[/code].
 static func from_json(d: Variant, conv: Callable, e: ParseError = null, refs := false) -> WeightedPool:
-	if d == null:
+	if d is not Dictionary:
+		if d != null:
+			ParseError.report_mismatch(e, "an object", d, "Archmage.WeightedPool")
 		return null
 	var wp := WeightedPool.new()
 	var a: Variant = d.get("items")
-	if a != null:
+	if a is Array:
 		for i in a.size():
 			wp.items.append(conv.call(a[i], e))
 			if e != null and e.failed:
 				return e.at(".items[%d]" % i)
+	elif a != null:
+		ParseError.report_mismatch(e, "an array", a, "Archmage.WeightedPool.items")
 	a = d.get("weights")
-	if a != null:
+	if a is Array:
 		for w: Variant in a:
-			wp.weights.append(0 if w == null else int(w))
+			if w is float or w is int:
+				wp.weights.append(int(w))
+			else:
+				if w != null:
+					ParseError.report_mismatch(e, "a number", w, "Archmage.WeightedPool.weights")
+				wp.weights.append(0)
+	elif a != null:
+		ParseError.report_mismatch(e, "an array", a, "Archmage.WeightedPool.weights")
 	if refs:
 		wp._ref_ids = wp.items
 		wp.items = []
@@ -52,6 +67,16 @@ func to_json() -> Dictionary:
 ## Returns the number of items.
 func size() -> int:
 	return items.size()
+
+
+## Returns a shallow copy of the pool. The copy has its own [member items] and [member weights] arrays, so changing
+## them does not change this pool, but the items themselves, such as config entries, are shared.
+func duplicate() -> WeightedPool:
+	var wp := WeightedPool.new()
+	wp.items = items.duplicate()
+	wp.weights = weights.duplicate()
+	wp._ref_ids = _ref_ids.duplicate()
+	return wp
 
 
 ## Returns an item drawn with a probability proportional to its weight, using [param rng], or the global random

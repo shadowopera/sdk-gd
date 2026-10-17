@@ -17,23 +17,25 @@ func load_json(d: Variant) -> String:
 	_unbind_refs()
 	entries.clear()
 	_entries_ref.clear()
-	if d == null:
-		return ""
 	var _e := Archmage.ParseError.new()
-	for _k1: String in d:
+	var _m1 := J.m(d, _e)
+	for _k1: String in _m1:
 		var _c1: Dictionary = {}
-		if d[_k1] != null:
-			for _k2: String in d[_k1]:
-				var _c2: Array = []
-				if d[_k1][_k2] != null:
-					for _e3: Variant in d[_k1][_k2]:
-						var _c3: Array = []
-						if _e3 != null:
-							for _e4: Variant in _e3:
-								_c3.append(J.s(_e4))
-						_c2.append(_c3)
-				_c1[_k2] = _c2
+		var _m2 := J.m(_m1[_k1], _e)
+		for _k2: String in _m2:
+			var _c2: Array = []
+			for _e3: Variant in J.a(_m2[_k2], _e):
+				var _c3: Array = []
+				for _e4: Variant in J.a(_e3, _e):
+					_c3.append(J.s(_e4, _e))
+				_c2.append(_c3)
+			_c1[_k2] = _c2
 		_entries_ref[_k1] = _c1
+		if _e.failed or _e.mismatched:
+			_e.at("[%s]" % _k1)
+			break
+	if _e.failed or _e.mismatched:
+		return _e.message_at("")
 	return ""
 
 func to_json() -> Dictionary:

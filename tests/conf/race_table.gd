@@ -23,18 +23,14 @@ class RaceCfg extends RefCounted:
 	var _heroes_ref: Array[int] = []
 
 	static func from_json(_d: Variant, _e: Archmage.ParseError) -> RaceCfg:
-		if _d == null:
-			return null
+		if _d is not Dictionary:
+			return J.o(_d, "RaceTable.RaceCfg", _e)
 		var _x := RaceCfg.new()
-		_x.birthplace = L10n.from_json(_d.get("birthplace"))
-		var _heroes_json: Variant = _d.get("heroes")
-		if _heroes_json != null:
-			for _e1: Variant in _heroes_json:
-				_x._heroes_ref.append(J.i(_e1))
-		var _hero_ids_json: Variant = _d.get("heroIds")
-		if _hero_ids_json != null:
-			for _e1: Variant in _hero_ids_json:
-				_x.hero_ids.append(J.i(_e1))
+		_x.birthplace = L10n.from_json(_d.get("birthplace"), _e)
+		for _e1: Variant in J.a(_d.get("heroes"), _e):
+			_x._heroes_ref.append(J.i(_e1, _e))
+		for _e1: Variant in J.a(_d.get("heroIds"), _e):
+			_x.hero_ids.append(J.i(_e1, _e))
 		return _x
 
 	func to_json() -> Dictionary:
@@ -97,11 +93,15 @@ func _iter_get(iter: Variant) -> Variant:
 func load_json(d: Variant) -> String:
 	_unbind_refs()
 	entries.clear()
-	if d == null:
-		return ""
 	var _e := Archmage.ParseError.new()
-	for _k1: String in d:
-		entries[_k1] = RaceCfg.from_json(d[_k1], _e)
+	var _m1 := J.m(d, _e)
+	for _k1: String in _m1:
+		entries[_k1] = RaceCfg.from_json(_m1[_k1], _e)
+		if _e.failed or _e.mismatched:
+			_e.at("[%s]" % _k1)
+			break
+	if _e.failed or _e.mismatched:
+		return _e.message_at("")
 	return ""
 
 ## Sets the ID of each config entry from its key.

@@ -48,9 +48,12 @@ var _ref_ids: Dictionary[int, Variant] = {}
 ## [code]convs[i].call(value, e)[/code], or [code]null[/code] when [param d] is [code]null[/code]. When a conversion
 ## records an error in [param e], returns [code]null[/code]. The values at the indexes in [param refs] are config IDs:
 ## they go to [member _ref_ids], and [member items] holds [code]null[/code] at those indexes until the generated code
-## resolves them.
+## resolves them. Any other value that is not an object gives [code]null[/code], and the type mismatch is recorded in
+## [param e] (see [method Archmage.ParseError.report_mismatch]).
 static func from_json(d: Variant, convs: Array[Callable], e: ParseError = null, refs: Array[int] = []) -> Tuple:
-	if d == null:
+	if d is not Dictionary:
+		if d != null:
+			ParseError.report_mismatch(e, "an object", d, "Archmage.Tuple")
 		return null
 	var t := Tuple.new()
 	t.items.resize(convs.size())
