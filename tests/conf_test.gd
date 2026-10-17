@@ -189,12 +189,15 @@ func test_variant() -> void:
 
 
 func test_atlas_modifier() -> void:
+	var calls := [0]
 	var modifier := func(aj: Archmage.AtlasJson) -> void:
+		calls[0] += 1
 		aj.variant["balance"]["/"] = aj.variant["balance"]["hard"]
 		aj.unique.erase("chapter")
 		aj.unique.erase("route")
 		aj.variant.erase("game")
 	check_golden(load_ok(opts().with_atlas_modifier(modifier).with_blacklist(["chapter", "route", "game"])), "atlas_modifier")
+	check_eq(calls[0], 1, "modifier calls")
 
 
 func test_override_root() -> void:
@@ -274,6 +277,7 @@ func test_lookup() -> void:
 	check(items.lookup(0) == null, "lookup of the zero ID")
 	check(items.try_lookup(999) == null, "try_lookup of a missing ID")
 	check(atlas.race_table.lookup("") == null, "lookup of the zero string ID")
+	check(atlas.race_table.try_lookup("Orc") == null, "try_lookup of a missing string ID")
 	check(items.has(101) and not items.has(999), "has")
 	check_eq(items.size(), items.entries.size(), "size")
 	var ids: Array[int] = []
@@ -432,6 +436,8 @@ func test_drop_atlas_keeps_held_entry() -> void:
 	var atlas := load_ok(opts().with_blacklist(["balance"]))
 	var arthur := atlas.hero_table.lookup(1)
 	var weapon_id := arthur.weapon.get_instance_id()
+	var elf := atlas.race_table.lookup("Elf")
+	check(not elf.heroes.is_empty(), "Elf heroes are bound")
 	var drop := atlas.drop_table.lookup(1)
 	var boss_spawn := atlas.game_cfg.boss_spawn
 	atlas = null
@@ -441,6 +447,8 @@ func test_drop_atlas_keeps_held_entry() -> void:
 	check_eq(boss_spawn.to_json()["item0"], 2, "to_json keeps the config ID in a tuple")
 	check_eq(arthur.title, "  the Once and Future King  ", "hero 1 title")
 	check(arthur.weapon == null, "hero 1 weapon is null")
+	check(arthur.race == null, "hero 1 race is null")
+	check(elf.heroes.is_empty(), "Elf heroes are cleared")
 	check(arthur.talents[0].skill == null, "hero 1 talent 0 skill is null")
 	check_eq(arthur.to_json()["weapon"], 101, "to_json keeps the config ID of a ref")
 	check(not is_instance_id_valid(weapon_id), "the weapon of hero 1 is freed")

@@ -418,7 +418,6 @@ sdk-gd/
 ├── tests/                          # Test runner and tests (*_test.gd)
 │   ├── conf/                       # Generated config code (json-gd)
 │   ├── enums/                      # Generated enum code (enum -t gd)
-│   ├── handconf/                   # Hand-written config code for the SDK tests
 │   ├── testdata/                   # atlas.json and config JSON, synced from sdk-go
 │   ├── override/                   # Override-layer JSON, synced from sdk-go
 │   └── golden/                     # Expected dump_atlas output
