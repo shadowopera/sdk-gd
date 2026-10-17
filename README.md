@@ -266,6 +266,8 @@ Notes for `Archmage.FS` implementations:
 await get_tree().create_timer(skill.cooldown.to_seconds()).timeout
 ```
 
+To get seconds as a `float` instead, set [`ARCHMAGE_GD_FLOAT_DURATION`](https://docs.shadop.dev/archmage/cli/cmd-struct/#template-specific) to `true` when you generate the code. Each duration is then a `float` that holds seconds, and the `to_json()` of a config gives it as a number of seconds, which `load_json()` cannot read back.
+
 ### DateTime
 
 `Archmage.DateTime` holds a point in time: `unix_time` in seconds, `nanosecond` within the second, and `offset`, the UTC offset in seconds that the config file was written with. `is_zero()` returns whether it is the zero value, `0001-01-01T00:00:00Z`.
@@ -280,7 +282,7 @@ A vector field whose elements are `float32` is a `Vector2`, `Vector3` or `Vector
 
 ### MinMax
 
-`Archmage.MinMax` is a range bounded by `min` and `max`, both included. `sample()` draws a random value from the range. The bounds are `int`, `float` or `Archmage.Duration` values.
+`Archmage.MinMax` is a range bounded by `min` and `max`, both included. `sample()` draws a random value from the range. The bounds are `int`, `float` or `Archmage.Duration` values; an `Archmage.Duration` is drawn in whole milliseconds. With `ARCHMAGE_GD_FLOAT_DURATION`, a duration range has `float` bounds and is sampled like any other `float` range.
 
 ### WeightedPool
 

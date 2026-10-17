@@ -22,20 +22,32 @@ func _init(ns: int = 0) -> void:
 ## For any other value that is not a valid duration, records the error in [param e] (see
 ## [method Archmage.ParseError.report]) and returns a zero duration.
 static func from_json(v: Variant, e: ParseError = null) -> Duration:
+	return Duration.new(_parse(v, e))
+
+
+## Returns the duration in [param v] in seconds, such as [code]1.5[/code]. It accepts the same values as
+## [method from_json] and records the same errors. Code generated with [code]ARCHMAGE_GD_FLOAT_DURATION=true[/code] calls
+## it for every duration.
+static func seconds_from_json(v: Variant, e: ParseError = null) -> float:
+	return _parse(v, e) / 1e9
+
+
+## Returns the nanoseconds of the duration in [param v], or 0 when [param v] is not a valid duration.
+static func _parse(v: Variant, e: ParseError) -> int:
 	if v == null:
-		return Duration.new()
+		return 0
 	if v is Array:
 		var a: Array = v
 		if a.is_empty():
-			return Duration.new()
+			return 0
 		if a.all(func(x: Variant) -> bool: return x is float or x is int):
 			var unit := int(a[0])
 			if a.size() == 2 and unit >= 0 and unit <= 3:
-				return Duration.new(int(a[1]) * _UNIT_NANOSECONDS[unit])
+				return int(a[1]) * _UNIT_NANOSECONDS[unit]
 			if a.size() == 3 and unit == 4:
-				return Duration.new(int(a[1]) * 1_000_000_000 + int(a[2]))
+				return int(a[1]) * 1_000_000_000 + int(a[2])
 	ParseError.report(e, ("invalid duration shards %s" if v is Array else "invalid duration %s") % ParseError.json_text(v))
-	return Duration.new()
+	return 0
 
 
 @warning_ignore_start("integer_division")

@@ -54,3 +54,13 @@ func test_conversions() -> void:
 	check_eq(d.to_milliseconds(), 1500, "to_milliseconds")
 	check_eq(Duration.new(-1_999_999).to_milliseconds(), -1, "to_milliseconds truncates toward zero")
 	check_eq(Duration.new().nanoseconds, 0, "zero")
+
+
+func test_seconds_from_json() -> void:
+	check_eq(Duration.seconds_from_json(null), 0.0, "null")
+	check_eq(Duration.seconds_from_json([1, 1500]), 1.5, "1.5 seconds")
+	check_eq(Duration.seconds_from_json([4, 3, 500000001]), 3.500000001, "seconds and nanoseconds")
+	check_eq(Duration.seconds_from_json([0, -5400]), -5400.0, "negative")
+	var e := Archmage.ParseError.new()
+	check_eq(Duration.seconds_from_json([5, 100], e), 0.0, "invalid shards")
+	check_eq(e.message, "invalid duration shards [5,100]", "error of invalid shards")
