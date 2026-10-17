@@ -8,6 +8,7 @@ extends RefCounted
 
 ## Called after all config data has been loaded and the references between config entries resolved. Returns an
 ## empty string on success, or an error message that makes the load fail.
-func on_loaded(_atlas: ConfigAtlas) -> String:
+@warning_ignore("unused_parameter")
+func on_loaded(atlas: ConfigAtlas) -> String:
 	# Initialize your config extensions here.
 	return ""

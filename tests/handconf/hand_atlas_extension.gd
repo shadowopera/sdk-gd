@@ -6,6 +6,6 @@ var fail_message := ""
 var loaded_count := 0
 
 
-func on_loaded(_atlas: HandConfigAtlas) -> String:
+func on_loaded(atlas: HandConfigAtlas) -> String:
 	loaded_count += 1
 	return fail_message
