@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 
-# Runs the tests in four modes: from the project directory, in an exported program (--exported), in a Web build
-# without thread support, and in a Web build with thread support (--threads). A mode that fails does not stop the
-# later modes; the exit code is 0 only when all modes pass.
+# Runs the tests in four modes, in this order: from the project directory, in an exported program (--exported),
+# in a Web build without thread support, and in a Web build with thread support (--threads). It exits with 1 at the
+# first mode that fails, so that the summary of that mode is at the end of the output.
 #
 # Usage: scripts/run-all-tests.sh [--no-sync]
 #   --no-sync  skip scripts/sync-testdata.sh
@@ -63,41 +63,29 @@ fi
 
 echo
 printImportantMessage "Running tests from the project directory..."
-path_ok=true
-scripts/godot-test.sh --no-sync || path_ok=false
+if ! scripts/godot-test.sh --no-sync; then
+    printError "Tests from the project directory failed."
+    exit 1
+fi
 
 echo
 printImportantMessage "Running tests in an exported program..."
-exported_ok=true
-scripts/godot-test.sh --no-sync --exported || exported_ok=false
+if ! scripts/godot-test.sh --no-sync --exported; then
+    printError "Tests in an exported program failed."
+    exit 1
+fi
 
 echo
 printImportantMessage "Running tests in a Web build without thread support..."
-web_ok=true
-scripts/godot-web-test.sh || web_ok=false
+if ! scripts/godot-web-test.sh; then
+    printError "Tests in a Web build without thread support failed."
+    exit 1
+fi
 
 echo
 printImportantMessage "Running tests in a Web build with thread support..."
-web_threads_ok=true
-scripts/godot-web-test.sh --threads || web_threads_ok=false
-
-if ! $path_ok; then
-    echo
-    printError "Tests from the project directory failed."
-fi
-if ! $exported_ok; then
-    echo
-    printError "Tests in an exported program failed."
-fi
-if ! $web_ok; then
-    echo
-    printError "Tests in a Web build without thread support failed."
-fi
-if ! $web_threads_ok; then
-    echo
+if ! scripts/godot-web-test.sh --threads; then
     printError "Tests in a Web build with thread support failed."
-fi
-if ! $path_ok || ! $exported_ok || ! $web_ok || ! $web_threads_ok; then
     exit 1
 fi
 

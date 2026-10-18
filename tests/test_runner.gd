@@ -19,7 +19,8 @@ const TEST_CASE = preload("test_case.gd")
 
 
 ## Receives every error that the engine or a script logs. While a test runs, it fails that test, or records the
-## error when the test is capturing errors. It can be called from any thread.
+## error when the test is capturing errors. It can be called from any thread. Godot prints an error before it calls
+## this logger, so the line that this logger prints for a captured error follows that error in the output.
 class ErrorLogger extends Logger:
 	var current = null
 	var _mutex := Mutex.new()
@@ -34,13 +35,17 @@ class ErrorLogger extends Logger:
 			return
 		var text := rationale if rationale != "" else code
 		var message := "error: %s (%s:%d, %s)" % [text, file, line, function]
+		var expected := false
 		_mutex.lock()
 		if current != null:
 			if current.capturing:
 				current.captured.append(message)
+				expected = true
 			else:
 				current.failures.append(message)
 		_mutex.unlock()
+		if expected:
+			print("   !!! The error above is expected")
 
 
 func _ready() -> void:

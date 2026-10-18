@@ -15,8 +15,8 @@ scripts/godot-test.sh [--no-sync] [--exported] [--filter <regex>]
 # Chrome (or CHROME) and node. Summary: logs/godot-<web|web-threads>-summary.txt
 scripts/godot-web-test.sh [--threads]
 
-# Run the tests in all four modes: project directory, exported, Web and Web with threads; a failed mode does not
-# stop the later ones
+# Run the tests in all four modes, in this order: project directory, exported, Web and Web with threads; it stops
+# at the first mode that fails
 scripts/run-all-tests.sh [--no-sync]
 
 # Sync test data from ../sdk-go to tests/testdata and tests/override
