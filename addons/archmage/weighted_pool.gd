@@ -97,9 +97,9 @@ func sample_index(rng: RandomNumberGenerator = null) -> int:
 	return _index_at(value)
 
 
-## Returns the item that [param value] maps to, so that the same value always gives the same item. The values from 0
-## to 1 are divided among the items in proportion to their weights. A value below 0 gives the first item with a
-## non-zero weight, and a value of 1 or more gives the last. Reports an error and returns [code]null[/code] in the
+## Returns the item that [param value] maps to, so that a call with the same value always returns the same item. The
+## values from 0 to 1 are divided among the items in proportion to their weights. A value below 0 maps to the first
+## item with a non-zero weight, and a value of 1 or more maps to the last. Reports an error and returns [code]null[/code] in the
 ## same cases as [method sample].
 func sample_with(value: float) -> Variant:
 	var i := sample_index_with(value)
@@ -131,7 +131,8 @@ func _total_weight(method: String) -> int:
 	return total
 
 
-# Returns the index of the item whose share of the total weight contains position, from 0 to the total weight - 1.
+# Returns the index of the item whose share of the total weight contains position, which is from 0 to the total
+# weight - 1.
 func _index_at(position: int) -> int:
 	var acc := 0
 	for i in weights.size():

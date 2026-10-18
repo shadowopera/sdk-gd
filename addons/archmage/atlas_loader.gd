@@ -175,7 +175,7 @@ var _error_message := ""
 var _busy := false
 ## Whether [method cancel] was called during the running load.
 var _cancel_requested := false
-## The number of items that the running load has loaded, and the number of items it loads, for [signal progress].
+## The number of items loaded so far and the number of items to load in the running load, for [signal progress].
 var _loaded_count := 0
 var _total_count := 0
 ## Whether [method load_atlas_async] uses the WorkerThreadPool. Tests set it to [code]false[/code] to run the path
@@ -266,9 +266,10 @@ func cancel() -> void:
 ## and the values of a key in both are merged by these rules. Keys only in [param target] are kept.
 ## [br]- Otherwise, [param patch] replaces [param target], also when it is an array or [code]null[/code].
 ## [br][br]
-## [code]null[/code] is a value, not a deletion: a [code]null[/code] map entry keeps its key, and the generated code
-## then gives that field its default value or makes that entry [code]null[/code]. [param target] is changed in place
-## when both are objects.
+## [code]null[/code] is a value, not a deletion: a key whose value in [param patch] is [code]null[/code] is set to
+## [code]null[/code] in the result, not removed. The generated code then sets a [code]null[/code] field to its default
+## value, and a [code]null[/code] config entry stays [code]null[/code]. [param target] is changed in place when both
+## are objects.
 static func merge_json(target: Variant, patch: Variant) -> Variant:
 	if not (target is Dictionary and patch is Dictionary):
 		return patch

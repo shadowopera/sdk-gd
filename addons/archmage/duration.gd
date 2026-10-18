@@ -1,8 +1,9 @@
 ## A length of time in nanoseconds, the type of a duration field.
 ##
-## In the config files, a duration is [code]null[/code] when it is zero, [code][unit, value][/code] when it is a whole
-## number of seconds (unit 0), milliseconds (1), microseconds (2), or is below one second (3), and
-## [code][4, seconds, nanoseconds][/code] otherwise. For example, 1.5 seconds is [code][1, 1500][/code].
+## In the config files, a duration is [code]null[/code] when it is zero, or an array that starts with a unit:
+## [code][0, seconds][/code], [code][1, milliseconds][/code], [code][2, microseconds][/code],
+## [code][3, nanoseconds][/code] or [code][4, seconds, nanoseconds][/code]. For example, 1.5 seconds is
+## [code][1, 1500][/code].
 extends RefCounted
 
 const Duration = preload("duration.gd")
@@ -18,7 +19,8 @@ func _init(ns: int = 0) -> void:
 	nanoseconds = ns
 
 
-## Returns the duration in [param v], a parsed JSON value. [code]null[/code] and an empty array give a zero duration.
+## Returns the duration in [param v], a parsed JSON value. For [code]null[/code] and an empty array, returns a zero
+## duration.
 ## For any other value that is not a valid duration, records the error in [param e] (see
 ## [method Archmage.ParseError.report]) and returns a zero duration.
 static func from_json(v: Variant, e: ParseError = null) -> Duration:

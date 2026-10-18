@@ -41,11 +41,13 @@ static var _control_chars := RegEx.create_from_string("[\\x00-\\x1f]")
 ## Returns [param value] as canonical JSON: object keys sorted, one tab per indent level, and a trailing newline.
 ## [br][br]
 ## [param value] may contain [code]null[/code], [bool], [int], [float], [String], [StringName], [Color], Godot
-## vectors, arrays, packed arrays, dictionaries, and objects that have a [code]to_json()[/code] method, which is called
-## and its result converted. A [Color] is written as [code]Archmage.Rgba.to_json()[/code] returns it, and a Godot
-## vector as an object with the keys [code]x[/code], [code]y[/code], [code]z[/code] and [code]w[/code]. Dictionary
-## keys are converted with [method @GlobalScope.str]. A [float] is written as Go's canonical JSON writes it. For any
-## other type, this method reports an error and writes [code]null[/code].
+## vectors, arrays, packed arrays, dictionaries, and objects that have a [code]to_json()[/code] method. For such an
+## object, this method calls [code]to_json()[/code] and writes the value that [code]to_json()[/code] returns. A
+## [Color] is written as the string that [code]Archmage.Rgba.to_json()[/code] returns for it, such as
+## [code]"#FF8000"[/code]. A Godot vector is written as an object with one key for each component, such as
+## [code]{"x": 1, "y": 2}[/code]. Dictionary keys are converted to strings with [method @GlobalScope.str]. A [float]
+## is written in the format of Go's canonical JSON, such as [code]1e-7[/code]. For any other type, this method reports
+## an error and writes [code]null[/code].
 static func canonicalize(value: Variant) -> String:
 	var out := PackedStringArray()
 	_write_canonical(value, "", out)
@@ -157,7 +159,7 @@ static func _format_float(x: float) -> String:
 		return "null"
 	if x == floorf(x) and absf(x) < 1e15:
 		return str(int(x))
-	# num_scientific gives the shortest digits that parse back to x, such as "1e-07" or "1.2345678901234568e+17".
+	# num_scientific returns the shortest digits that parse back to x, such as "1e-07" or "1.2345678901234568e+17".
 	# Lay them out as Go does (ECMAScript Number.prototype.toString): "1e-7", "123456789012345680".
 	var t := String.num_scientific(absf(x))
 	var exponent := 0

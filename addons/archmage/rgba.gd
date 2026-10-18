@@ -10,8 +10,8 @@ const ParseError = preload("parse_error.gd")
 const _HEX_DIGITS := "0123456789abcdefABCDEF"
 
 
-## Returns the color in [param v], a parsed JSON value. [code]null[/code] and [code]""[/code] give
-## [code]Color(0, 0, 0, 0)[/code]. For any other value that is not [code]"#RRGGBB"[/code] or
+## Returns the color in [param v], a parsed JSON value. For [code]null[/code] and [code]""[/code],
+## returns [code]Color(0, 0, 0, 0)[/code]. For any other value that is not [code]"#RRGGBB"[/code] or
 ## [code]"#RRGGBBAA"[/code], records the error in [param e] (see [method Archmage.ParseError.report]) and
 ## returns [code]Color(0, 0, 0, 0)[/code].
 static func from_json(v: Variant, e: ParseError = null) -> Color:

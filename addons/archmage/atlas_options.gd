@@ -48,9 +48,9 @@ func with_logger(logger: AtlasLogger) -> AtlasOptions:
 	return self
 
 
-## Sets the file system from which atlas.json, the config files and the files in override roots
-## ([method with_override_root]) are read. The default is [Archmage.FileAccessFS].
-## [method with_override_fs] sources are not affected.
+## Sets the file system that atlas.json, the config files and the files in the override roots of
+## [method with_override_root] are read from. The default is [Archmage.FileAccessFS]. The override sources added with
+## [method with_override_fs] use their own file systems.
 func with_fs(fs: FS) -> AtlasOptions:
 	if fs == null:
 		_set_error("with_fs: fs is null")
@@ -91,10 +91,11 @@ func with_variant(key: String, variant: String) -> AtlasOptions:
 	return self
 
 
-## Adds a directory of override files in the main file system. An override file has the path of a config file
-## relative to [param dir]. After the config files of an item are merged, its override files are merged into the
-## result (see [method Archmage.AtlasLoader.merge_json]), ordered by config file and then by the order in which the
-## sources are added, so a later source overrides an earlier one. The load fails when the directory does not exist.
+## Adds a directory of override files in the main file system. The override file of a config file has the same
+## relative path under [param dir]: [code]<dir>/hero.json[/code] overrides [code]hero.json[/code]. After the config
+## files of an item are merged, its override files are merged into the result (see
+## [method Archmage.AtlasLoader.merge_json]) in the order of the config files, and for each config file in the order
+## in which the sources were added, so a later source overrides an earlier one. The load fails when the directory does not exist.
 func with_override_root(dir: String) -> AtlasOptions:
 	if dir.strip_edges() == "":
 		_set_error("with_override_root: dir is empty")

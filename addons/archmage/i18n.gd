@@ -154,7 +154,8 @@ func text(key: String, lang: String) -> String:
 
 
 ## Sets [member _error_message] from [param job] and, when it succeeded, merges its texts into [param lang].
-## The message is set when the call returns, so that a call that overlaps another one reports its own result.
+## The message is set when the merge finishes, not when it starts, so that when two merges overlap, each caller reads
+## the message of its own merge right after it returns.
 func _finish(job: _L10nFileJob, lang: String) -> Error:
 	_error_message = job.message
 	if job.err == OK and job.texts != null:

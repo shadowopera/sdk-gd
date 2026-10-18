@@ -266,7 +266,7 @@ Notes for `Archmage.FS` implementations:
 await get_tree().create_timer(skill.cooldown.to_seconds()).timeout
 ```
 
-To get seconds as a `float` instead, set [`ARCHMAGE_GD_FLOAT_DURATION`](https://docs.shadop.dev/archmage/cli/cmd-struct/#template-specific) to `true` when you generate the code. Each duration is then a `float` that holds seconds, and the `to_json()` of a config gives it as a number of seconds, which `load_json()` cannot read back.
+To get seconds as a `float` instead, set [`ARCHMAGE_GD_FLOAT_DURATION`](https://docs.shadop.dev/archmage/cli/cmd-struct/#template-specific) to `true` when you generate the code. Each duration is then a `float` that holds seconds, and the `to_json()` of a config returns it as a number of seconds, which `load_json()` cannot read back.
 
 ### DateTime
 
@@ -286,7 +286,7 @@ A vector field whose elements are `float32` is a `Vector2`, `Vector3` or `Vector
 
 ### WeightedPool
 
-`Archmage.WeightedPool` holds parallel `items` and `weights` arrays. `sample()` and `sample_index()` draw an item (or its index) at random with probability proportional to its weight; `sample_with(value)` maps a value from 0 to 1 to an item, so that the same value always gives the same item. When the pool is empty or its total weight is not from 1 to 1,000,000,000, they report an error and return `null` or `-1`.
+`Archmage.WeightedPool` holds parallel `items` and `weights` arrays. `sample()` and `sample_index()` draw an item (or its index) at random with probability proportional to its weight; `sample_with(value)` maps a value from 0 to 1 to an item, so that the same value always maps to the same item. When the pool is empty or its total weight is not from 1 to 1,000,000,000, they report an error and return `null` or `-1`.
 
 `duplicate()` returns a shallow copy of the pool with its own `items` and `weights` arrays, for code that changes the weights at run time without changing the config entry. The items themselves, such as config entries, are shared.
 

@@ -7,7 +7,7 @@ const VersionInfo = preload("version_info.gd")
 const DateTime = preload("date_time.gd")
 const ParseError = preload("parse_error.gd")
 
-## The semantic version given with the [code]--semver[/code] flag of archmage.
+## The semantic version set with the [code]--semver[/code] flag of archmage.
 var semver := ""
 ## The workspace name.
 var workspace := ""

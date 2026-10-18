@@ -10,7 +10,7 @@ func read_file(path: String) -> Variant:
 	var err := FileAccess.get_open_error()
 	if err == OK:
 		return data
-	# Why not trust the error code? On Android, a missing file in the APK gives ERR_CANT_OPEN.
+	# Why not trust the error code? On Android, get_open_error() returns ERR_CANT_OPEN for a missing file in the APK.
 	if not FileAccess.file_exists(path):
 		return ERR_FILE_NOT_FOUND
 	return err

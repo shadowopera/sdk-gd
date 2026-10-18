@@ -13,8 +13,9 @@ extends RefCounted
 
 
 ## Returns the content of the file at [param path] as a [PackedByteArray], or an [enum Error] code when the file
-## cannot be read. Return [constant ERR_FILE_NOT_FOUND] when the file does not exist: the loader skips an override
-## file for which [method file_exists] returned [code]true[/code] only when it gets this code.
+## cannot be read. Return [constant ERR_FILE_NOT_FOUND] when the file does not exist. When [method file_exists]
+## returned [code]true[/code] for an override file, the loader skips the file only on this code; any other code fails
+## the load.
 @abstract func read_file(path: String) -> Variant
 
 

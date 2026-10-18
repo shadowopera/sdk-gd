@@ -78,8 +78,9 @@ static func report(e: ParseError, msg: String) -> void:
 		e.fail(msg)
 
 
-## Records in [param e] that [param v], a parsed JSON value, is not [param expected], such as
-## [code]"a number"[/code], or reports it with [method @GlobalScope.push_error] when [param e] is [code]null[/code].
+## Records in [param e] that [param v], a parsed JSON value, has the wrong type, or reports it with
+## [method @GlobalScope.push_error] when [param e] is [code]null[/code]. [param expected] describes the expected
+## value, such as [code]"a number"[/code].
 ## The message is [code]expected <expected>, got <v>[/code], where an array or an object is described by its kind
 ## and any other value by its JSON text, such as [code]expected a number, got "abc"[/code]. When
 ## [param type_name] is not empty, the message starts with it, such as

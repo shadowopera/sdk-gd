@@ -13,9 +13,9 @@ var y: Variant
 
 
 ## Returns the vector in [param d], a parsed JSON object, converting each element with
-## [code]conv.call(value, e)[/code], which returns the zero value for [code]null[/code]. [code]null[/code] gives the
-## zero vector. Any other value that is not an object gives the zero vector too, and the type mismatch is recorded in
-## [param e] (see [method Archmage.ParseError.report_mismatch]).
+## [code]conv.call(value, e)[/code], which returns the zero value for [code]null[/code]. For [code]null[/code], returns
+## the zero vector. For any other value that is not an object, returns the zero vector too and records the type
+## mismatch in [param e] (see [method Archmage.ParseError.report_mismatch]).
 static func from_json(d: Variant, conv: Callable, e: ParseError = null) -> Vec2:
 	var v := Vec2.new()
 	if d is not Dictionary:

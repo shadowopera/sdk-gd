@@ -14,10 +14,10 @@ var max: Variant
 
 
 ## Returns the range in [param d], a parsed JSON object, converting each bound with [code]conv.call(value, e)[/code],
-## which returns the zero value for [code]null[/code]. [code]null[/code] gives a range whose bounds are zero. When
-## [param conv] records an error in [param e], returns [code]null[/code]. Any other value that is not an object gives
-## the same range as [code]null[/code], and the type mismatch is recorded in [param e] (see
-## [method Archmage.ParseError.report_mismatch]).
+## which returns the zero value for [code]null[/code]. For [code]null[/code], returns a range whose bounds are zero.
+## For any other value that is not an object, returns the same range and records the type mismatch in [param e] (see
+## [method Archmage.ParseError.report_mismatch]). When [param conv] records an error in [param e], returns
+## [code]null[/code].
 static func from_json(d: Variant, conv: Callable, e: ParseError = null) -> MinMax:
 	var mm := MinMax.new()
 	if d is not Dictionary:
