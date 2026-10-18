@@ -438,6 +438,16 @@ scripts/sync-testdata.sh                              # sync tests/testdata and 
 
 To regenerate `tests/enums`, `tests/conf` and `addons/archmage_editor`, run `DIAGNOSTIC=0 just sdk-gd` in `../whisper`. To update the documentation site, run `docs/update.sh`. See `CLAUDE.md` for the requirements of each script.
 
+### Versioning
+
+The version has the form `MAJOR.MINOR.PATCH`.
+
+| Part | Incremented when | Notes |
+|---|---|---|
+| <span style="white-space: nowrap">`MAJOR`</span> | The interface has a breaking change | Identifies the generation of the interface contract |
+| `MINOR` | Archmage adds a feature | Feature snapshot number; keeps counting across `MAJOR` versions and is not reset when `MAJOR` increments |
+| `PATCH` | The SDK fixes a bug, improves its language-specific implementation, or adds an SDK-only feature | Reset to 0 when `MAJOR` or `MINOR` increments |
+
 ## License
 
 Apache 2.0. See [LICENSE](LICENSE) for details.
