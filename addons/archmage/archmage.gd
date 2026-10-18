@@ -10,7 +10,7 @@
 class_name Archmage
 extends RefCounted
 
-const VERSION := "0.1.0"
+const VERSION := "0.20.0"
 
 const Atlas = preload("atlas.gd")
 const AtlasItem = preload("atlas_item.gd")
