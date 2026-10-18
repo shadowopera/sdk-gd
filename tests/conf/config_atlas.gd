@@ -84,6 +84,8 @@ func bind_refs() -> String:
 		return "skill" + err
 	return ""
 
+## The atlas calls it when it is freed. Do not call it yourself: afterward, the reference fields of all config entries
+## are [code]null[/code], and the atlas cannot be used.
 func unbind_refs() -> void:
 	chapter_array._unbind_refs()
 	drop_table._unbind_refs()
