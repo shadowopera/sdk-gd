@@ -1,3 +1,5 @@
+![Archmage](./images/archmage.jpg)
+
 # GDScript SDK Overview
 
 The GDScript SDK is the runtime library through which Godot games written in GDScript load and access config data exported by Archmage.

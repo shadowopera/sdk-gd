@@ -2,6 +2,7 @@
 
 # Generates the GDScript pages of the docs site in ../docs/archmage: overview-gd from README.md and CHANGELOG.md,
 # sdk-gd and gen-gd from the doc comments of addons/archmage and tests/conf, and gen-gd-editor from docs/gen-gd-editor.
+# The image of README.md is the one of the C# SDK; ../sdk-cs/docs/update.sh copies it to the docs site.
 #
 # Set GODOT to the Godot executable to override /Applications/Godot_mono.app.
 
@@ -96,7 +97,7 @@ printMessage "Generating $siteDir/overview-gd/sdk-gd.mdx ..."
     echo "---"
     echo ""
     perl -0777 -pe 's/\n---\s+## Development.*//s' README.md | \
-        perl -0777 -pe 's/\A# [^\n]*\n\n//' | \
+        perl -0777 -pe 's/^# GDScript SDK Overview\n\n//m' | \
         perl -pe 's|\./images/archmage\.jpg|../../../assets/archmage/archmage.jpg|g' | \
         perl -0777 -pe 's/^> \[!NOTE\]\n((?:> [^\n]*\n?)+)/my $b=$1; $b=~s{^> }{}gm; ":::note\n${b}:::\n"/gme'
 } > "$siteDir/overview-gd/sdk-gd.mdx"

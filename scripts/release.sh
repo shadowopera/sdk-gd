@@ -49,6 +49,7 @@ fi
 
 STEP_LIST=(
     checkVersion
+    syncReadme
     runTests
     updateChangelog
     bumpVersion
@@ -94,6 +95,24 @@ while true; do
             printMessage "Version v$VERSION is available."
             ensureCleanWorktree
             markStepDone "checkVersion"
+            ;;
+
+        syncReadme)
+            printMessage "Generating addons/archmage/README.md..."
+            if ! bash scripts/sync-addon-readme.sh; then
+                printError "sync-addon-readme.sh failed."
+                exit 1
+            fi
+            if [[ -n "$(git status --porcelain addons/archmage/README.md)" ]]; then
+                printMessage "Committing addons/archmage/README.md..."
+                git add addons/archmage/README.md
+                if ! git commit -m "docs: update the README of the addon"; then
+                    printError "Failed to commit addons/archmage/README.md."
+                    exit 1
+                fi
+            fi
+            ensureCleanWorktree
+            markStepDone "syncReadme"
             ;;
 
         runTests)
